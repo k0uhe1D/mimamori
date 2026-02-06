@@ -20,10 +20,20 @@ SYSTEM_PROMPT = """\
 {
   "posture": "仰向け / うつ伏せ / 横向き / 不明",
   "sleep_state": "睡眠中 / 覚醒 / 不明",
+  "actions": ["観察された赤ちゃんの詳細な動作・状態のリスト"],
   "anomalies": ["検知された異常のリスト(なければ空配列)"],
   "summary": "総合的な状態の要約(1-2文)",
   "confidence": "high / medium / low"
 }
+
+actionsの記載例:
+- "右手を挙げている", "左手を握っている", "両手をバタバタさせている"
+- "あくびをしている", "口を動かしている", "指をしゃぶっている"
+- "足をバタバタさせている", "体を反っている", "頭を横に向けている"
+- "目を開けている", "泣いている表情", "笑顔のような表情"
+- "おくるみに包まれている", "布団を蹴っている"
+観察できる動作や状態をできるだけ具体的に記載してください。
+何も観察できない場合は空配列にしてください。
 
 重要な注意事項:
 - うつ伏せ姿勢は危険です。検知した場合はanomaliesに必ず含めてください。
@@ -86,6 +96,8 @@ def analyze_frame_gemini(
 
     anomalies_raw = data.get("anomalies", [])
     anomalies = anomalies_raw if isinstance(anomalies_raw, list) else []
+    actions_raw = data.get("actions", [])
+    actions = actions_raw if isinstance(actions_raw, list) else []
 
     return AnalysisResult.create_now(
         posture=str(data.get("posture", "不明")),
@@ -94,4 +106,5 @@ def analyze_frame_gemini(
         confidence=str(data.get("confidence", "low")),
         raw_response=raw_text,
         anomalies=[str(a) for a in anomalies],
+        actions=[str(a) for a in actions],
     )

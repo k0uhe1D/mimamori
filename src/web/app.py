@@ -74,6 +74,7 @@ def create_app(
             summary=result.summary,
             confidence=result.confidence,
             anomalies=result.anomalies,
+            actions=result.actions,
         )
 
     @app.get("/api/history")
@@ -88,6 +89,7 @@ def create_app(
                 summary=r.summary,
                 confidence=r.confidence,
                 anomalies=r.anomalies,
+                actions=r.actions,
             )
             for r in history
         ]

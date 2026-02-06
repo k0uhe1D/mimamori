@@ -20,6 +20,7 @@
     .result-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
     .result-label { font-weight: 600; color: #555; }
     .anomaly { color: #e74c3c; font-weight: bold; }
+    .action-tag { display: inline-block; background: #eaf2f8; color: #2c3e50; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
     .history-container { grid-column: 1 / -1; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
     th { text-align: left; padding: 8px; background: #f8f8f8; border-bottom: 2px solid #ddd; }
@@ -54,8 +55,8 @@
     <div class="card history-container">
       <h2>解析履歴</h2>
       <table>
-        <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>要約</th><th>異常</th></tr></thead>
-        <tbody id="historyBody"><tr><td colspan="5" class="no-data">履歴なし</td></tr></tbody>
+        <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>動作・状態</th><th>要約</th><th>異常</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="6" class="no-data">履歴なし</td></tr></tbody>
       </table>
     </div>
     <div class="card settings-container">
@@ -91,6 +92,11 @@
         html += '<div class="result-item"><span class="result-label">睡眠状態</span><span>' + d.sleep_state + '</span></div>';
         html += '<div class="result-item"><span class="result-label">要約</span><span>' + d.summary + '</span></div>';
         html += '<div class="result-item"><span class="result-label">信頼度</span><span>' + d.confidence + '</span></div>';
+        if (d.actions && d.actions.length > 0) {
+          html += '<div class="result-item"><span class="result-label">動作・状態</span><span>' + d.actions.map(function(a) { return '<span class="action-tag">' + a + '</span>'; }).join('') + '</span></div>';
+        } else {
+          html += '<div class="result-item"><span class="result-label">動作・状態</span><span>特になし</span></div>';
+        }
         if (d.anomalies.length > 0) {
           html += '<div class="result-item"><span class="result-label">異常</span><span class="anomaly">' + d.anomalies.join(', ') + '</span></div>';
           banner.textContent = '⚠ 異常検知: ' + d.anomalies.join(', ');
@@ -109,10 +115,11 @@
         const r = await fetch('/api/history');
         const d = await r.json();
         const body = document.getElementById('historyBody');
-        if (d.items.length === 0) { body.innerHTML = '<tr><td colspan="5" class="no-data">履歴なし</td></tr>'; return; }
+        if (d.items.length === 0) { body.innerHTML = '<tr><td colspan="6" class="no-data">履歴なし</td></tr>'; return; }
         body.innerHTML = d.items.map(function(item) {
           const anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.join(', ') + '</span>' : 'なし';
-          return '<tr><td>' + formatTime(item.timestamp) + '</td><td>' + item.posture + '</td><td>' + item.sleep_state + '</td><td>' + item.summary + '</td><td>' + anomaly + '</td></tr>';
+          const actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + a + '</span>'; }).join('') : '-';
+          return '<tr><td>' + formatTime(item.timestamp) + '</td><td>' + item.posture + '</td><td>' + item.sleep_state + '</td><td>' + actions + '</td><td>' + item.summary + '</td><td>' + anomaly + '</td></tr>';
         }).join('');
       } catch (e) { /* ignore */ }
     }

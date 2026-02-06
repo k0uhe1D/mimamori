@@ -15,6 +15,7 @@ class AnalysisResult:
         posture: Detected posture (e.g., "仰向け", "うつ伏せ", "横向き").
         sleep_state: Sleep state (e.g., "睡眠中", "覚醒", "不明").
         anomalies: List of detected anomalies, empty if none.
+        actions: Detailed observations of the baby's actions and state.
         summary: Overall status summary from the LLM.
         confidence: Confidence assessment (e.g., "high", "medium", "low").
         raw_response: Full raw text response from the LLM.
@@ -27,6 +28,7 @@ class AnalysisResult:
     confidence: str
     raw_response: str
     anomalies: list[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
 
     @classmethod
     def create_now(
@@ -38,6 +40,7 @@ class AnalysisResult:
         confidence: str,
         raw_response: str,
         anomalies: list[str] | None = None,
+        actions: list[str] | None = None,
     ) -> AnalysisResult:
         """Create an AnalysisResult with current UTC timestamp."""
         return cls(
@@ -48,4 +51,5 @@ class AnalysisResult:
             confidence=confidence,
             raw_response=raw_response,
             anomalies=anomalies or [],
+            actions=actions or [],
         )
