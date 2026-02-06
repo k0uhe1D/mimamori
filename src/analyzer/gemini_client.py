@@ -66,8 +66,9 @@ def analyze_frame_gemini(
         model=model,
         contents=[SYSTEM_PROMPT, image_part],  # type: ignore[arg-type]
         config=types.GenerateContentConfig(
-            max_output_tokens=500,
+            max_output_tokens=1024,
             temperature=0.1,
+            response_mime_type="application/json",
         ),
     )
 
