@@ -14,11 +14,34 @@ import sys
 import time
 from dataclasses import replace
 
-from src.analyzer import analyze_frame
+from src.analyzer import AnalysisResult, analyze_frame, analyze_frame_gemini
 from src.capture import OpenCVCamera, encode_frame_to_base64
 from src.config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+def _call_analyzer(settings: Settings, base64_image: str) -> AnalysisResult:
+    """Route analysis to the configured LLM provider.
+
+    Args:
+        settings: Application settings.
+        base64_image: Base64-encoded JPEG image string.
+
+    Returns:
+        AnalysisResult from the selected LLM provider.
+    """
+    if settings.llm_provider == "gemini":
+        return analyze_frame_gemini(
+            base64_image=base64_image,
+            api_key=settings.gemini_api_key,
+            model=settings.gemini_model,
+        )
+    return analyze_frame(
+        base64_image=base64_image,
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+    )
 
 
 def run_once(settings: Settings) -> int:
@@ -42,11 +65,7 @@ def run_once(settings: Settings) -> int:
             return 1
 
         base64_image = encode_frame_to_base64(frame)
-        result = analyze_frame(
-            base64_image=base64_image,
-            api_key=settings.openai_api_key,
-            model=settings.openai_model,
-        )
+        result = _call_analyzer(settings, base64_image)
 
         print(f"[{result.timestamp.isoformat()}] 解析結果:")
         print(f"  姿勢: {result.posture}")
@@ -90,11 +109,7 @@ def run_periodic(settings: Settings) -> int:
                 continue
 
             base64_image = encode_frame_to_base64(frame)
-            result = analyze_frame(
-                base64_image=base64_image,
-                api_key=settings.openai_api_key,
-                model=settings.openai_model,
-            )
+            result = _call_analyzer(settings, base64_image)
 
             print(f"\n[{result.timestamp.isoformat()}] 解析結果:")
             print(f"  姿勢: {result.posture}")
