@@ -357,3 +357,53 @@ class TestApiAnalysisControl:
         data = response.json()
         assert data["ok"] is False
         assert data["message"] == "Analysis control not available"
+
+
+class TestApiRecordingControl:
+    """Tests for POST /api/recording/start and /api/recording/stop."""
+
+    def test_recording_start(self) -> None:
+        """POST /api/recording/start starts recording."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        recorder_mock = MagicMock()
+        recorder_mock.recording = False
+        recorder_mock.start.return_value = "/tmp/test.mp4"
+        app = create_app(
+            state=state, runtime_config=runtime_config, recorder=recorder_mock
+        )
+        client = TestClient(app)
+        response = client.post("/api/recording/start")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is True
+        assert data["recording"] is True
+        assert data["file"] == "/tmp/test.mp4"
+        recorder_mock.start.assert_called_once()
+
+    def test_recording_stop(self) -> None:
+        """POST /api/recording/stop stops recording."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        recorder_mock = MagicMock()
+        recorder_mock.recording = True
+        recorder_mock.stop.return_value = "/tmp/test.mp4"
+        app = create_app(
+            state=state, runtime_config=runtime_config, recorder=recorder_mock
+        )
+        client = TestClient(app)
+        response = client.post("/api/recording/stop")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is True
+        assert data["recording"] is False
+        recorder_mock.stop.assert_called_once()
+
+    def test_recording_not_available(self) -> None:
+        """Recording control returns error when no recorder provided."""
+        client, _, _ = _make_app()
+        response = client.post("/api/recording/start")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is False
+        assert data["message"] == "Recording not available"

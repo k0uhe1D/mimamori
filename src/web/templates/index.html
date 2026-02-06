@@ -131,6 +131,7 @@
       <div class="form-actions" style="margin-top:8px;">
         <button class="btn btn-danger btn-sm" id="streamToggleBtn" onclick="toggleStream()">映像停止</button>
         <button class="btn btn-danger btn-sm" id="analysisToggleBtn" onclick="toggleAnalysis()">解析停止</button>
+        <button class="btn btn-sm" id="recordToggleBtn" onclick="toggleRecording()" style="background:#e67e22;">録画開始</button>
       </div>
     </div>
     <div class="card result-container">
@@ -384,6 +385,28 @@
           }
         }
       } catch (e) { showToast('ストリーム制御に失敗しました', 'error'); }
+    }
+    var isRecording = false;
+    async function toggleRecording() {
+      var endpoint = isRecording ? '/api/recording/stop' : '/api/recording/start';
+      try {
+        var r = await fetch(endpoint, { method: 'POST' });
+        var d = await r.json();
+        if (d.ok) {
+          isRecording = d.recording;
+          var btn = document.getElementById('recordToggleBtn');
+          if (isRecording) {
+            btn.textContent = '録画停止';
+            btn.className = 'btn btn-danger btn-sm';
+            showToast('録画を開始しました: ' + d.file);
+          } else {
+            btn.textContent = '録画開始';
+            btn.className = 'btn btn-sm';
+            btn.style.background = '#e67e22';
+            showToast('録画を停止しました: ' + d.file);
+          }
+        }
+      } catch (e) { showToast('録画制御に失敗しました', 'error'); }
     }
     var analysisRunning = true;
     async function toggleAnalysis() {

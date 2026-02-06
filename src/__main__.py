@@ -20,6 +20,7 @@ from src.analyzer import AnalysisResult, analyze_frame, analyze_frame_gemini
 from src.capture import OpenCVCamera, RTSPCamera, encode_frame_to_base64
 from src.config import RuntimeConfig, Settings
 from src.core import AnalyzerWorker, FrameGrabber, MonitoringState
+from src.recorder import VideoRecorder
 
 if TYPE_CHECKING:
     from src.capture.camera import CameraProtocol
@@ -122,6 +123,7 @@ def run_web(settings: Settings) -> int:
         runtime_config=runtime_config,
         analyze_fn=_runtime_call_analyzer,
     )
+    recorder = VideoRecorder(state=state)
 
     def swap_camera_fn(url: str, device_index: int) -> None:
         """Create a new camera and swap the grabber to use it."""
@@ -145,12 +147,15 @@ def run_web(settings: Settings) -> int:
         grabber=grabber,
         settings=settings,
         worker=worker,
+        recorder=recorder,
     )
 
     try:
         logger.info("Starting web dashboard on http://localhost:8000")
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     finally:
+        if recorder.recording:
+            recorder.stop()
         worker.stop()
         grabber.stop()
         camera.release()

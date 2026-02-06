@@ -18,6 +18,7 @@ from src.web.schemas import (
     CameraSwapResponse,
     HistoryItem,
     HistoryResponse,
+    RecordingControlResponse,
     SettingsGetResponse,
     SettingsUpdateRequest,
     SettingsUpdateResponse,
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from src.core.analyzer_worker import AnalyzerWorker
     from src.core.grabber import FrameGrabber
     from src.core.state import MonitoringState
+    from src.recorder.recorder import VideoRecorder
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,7 @@ def create_app(
     grabber: FrameGrabber | None = None,
     settings: Settings | None = None,
     worker: AnalyzerWorker | None = None,
+    recorder: VideoRecorder | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -56,6 +59,7 @@ def create_app(
         grabber: FrameGrabber instance for stop/start control.
         settings: Application settings (for API key availability info).
         worker: AnalyzerWorker instance for pause/resume control.
+        recorder: VideoRecorder instance for recording control.
 
     Returns:
         Configured FastAPI application instance.
@@ -249,6 +253,43 @@ def create_app(
         logger.info("Analysis resumed via API")
         return AnalysisControlResponse(
             ok=True, paused=False, message="Analysis resumed"
+        )
+
+    @app.post("/api/recording/start")
+    async def api_recording_start() -> RecordingControlResponse:
+        """Start recording video."""
+        if recorder is None:
+            return RecordingControlResponse(
+                ok=False, recording=False, message="Recording not available"
+            )
+        if recorder.recording:
+            return RecordingControlResponse(
+                ok=True,
+                recording=True,
+                file=recorder.current_file,
+                message="Already recording",
+            )
+        filepath = recorder.start()
+        logger.info("Recording started via API: %s", filepath)
+        return RecordingControlResponse(
+            ok=True, recording=True, file=filepath, message="Recording started"
+        )
+
+    @app.post("/api/recording/stop")
+    async def api_recording_stop() -> RecordingControlResponse:
+        """Stop recording video."""
+        if recorder is None:
+            return RecordingControlResponse(
+                ok=False, recording=False, message="Recording not available"
+            )
+        if not recorder.recording:
+            return RecordingControlResponse(
+                ok=True, recording=False, message="Not recording"
+            )
+        filepath = recorder.stop()
+        logger.info("Recording stopped via API: %s", filepath)
+        return RecordingControlResponse(
+            ok=True, recording=False, file=filepath, message="Recording stopped"
         )
 
     return app
