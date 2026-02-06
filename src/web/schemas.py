@@ -17,6 +17,7 @@ class StatusResponse(BaseModel):
     summary: str = ""
     confidence: str = ""
     anomalies: list[str] = []
+    actions: list[str] = []
 
 
 class HistoryItem(BaseModel):
@@ -28,6 +29,7 @@ class HistoryItem(BaseModel):
     summary: str
     confidence: str
     anomalies: list[str]
+    actions: list[str] = []
 
 
 class HistoryResponse(BaseModel):
