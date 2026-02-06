@@ -144,6 +144,7 @@ def run_web(settings: Settings) -> int:
         swap_camera_fn=swap_camera_fn,
         grabber=grabber,
         settings=settings,
+        worker=worker,
     )
 
     try:

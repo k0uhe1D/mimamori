@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from src.web.schemas import (
+    AnalysisControlResponse,
     CameraSwapRequest,
     CameraSwapResponse,
     HistoryItem,
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 
     from src.config.runtime_config import RuntimeConfig
     from src.config.settings import Settings
+    from src.core.analyzer_worker import AnalyzerWorker
     from src.core.grabber import FrameGrabber
     from src.core.state import MonitoringState
 
@@ -43,6 +45,7 @@ def create_app(
     swap_camera_fn: Callable[[str, int], None] | None = None,
     grabber: FrameGrabber | None = None,
     settings: Settings | None = None,
+    worker: AnalyzerWorker | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -52,6 +55,7 @@ def create_app(
         swap_camera_fn: Callback to swap camera (url, device_index).
         grabber: FrameGrabber instance for stop/start control.
         settings: Application settings (for API key availability info).
+        worker: AnalyzerWorker instance for pause/resume control.
 
     Returns:
         Configured FastAPI application instance.
@@ -222,6 +226,30 @@ def create_app(
         grabber.start()
         logger.info("Stream started via API")
         return StreamControlResponse(ok=True, running=True, message="Stream started")
+
+    @app.post("/api/analysis/pause")
+    async def api_analysis_pause() -> AnalysisControlResponse:
+        """Pause the analyzer worker."""
+        if worker is None:
+            return AnalysisControlResponse(
+                ok=False, paused=False, message="Analysis control not available"
+            )
+        worker.pause()
+        logger.info("Analysis paused via API")
+        return AnalysisControlResponse(ok=True, paused=True, message="Analysis paused")
+
+    @app.post("/api/analysis/resume")
+    async def api_analysis_resume() -> AnalysisControlResponse:
+        """Resume the analyzer worker."""
+        if worker is None:
+            return AnalysisControlResponse(
+                ok=False, paused=False, message="Analysis control not available"
+            )
+        worker.resume()
+        logger.info("Analysis resumed via API")
+        return AnalysisControlResponse(
+            ok=True, paused=False, message="Analysis resumed"
+        )
 
     return app
 

@@ -316,3 +316,44 @@ class TestApiStreamControl:
         data = response.json()
         assert data["ok"] is False
         assert data["message"] == "Stream control not available"
+
+
+class TestApiAnalysisControl:
+    """Tests for POST /api/analysis/pause and /api/analysis/resume endpoints."""
+
+    def test_analysis_pause(self) -> None:
+        """POST /api/analysis/pause pauses the worker."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        worker_mock = MagicMock()
+        app = create_app(state=state, runtime_config=runtime_config, worker=worker_mock)
+        client = TestClient(app)
+        response = client.post("/api/analysis/pause")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is True
+        assert data["paused"] is True
+        worker_mock.pause.assert_called_once()
+
+    def test_analysis_resume(self) -> None:
+        """POST /api/analysis/resume resumes the worker."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        worker_mock = MagicMock()
+        app = create_app(state=state, runtime_config=runtime_config, worker=worker_mock)
+        client = TestClient(app)
+        response = client.post("/api/analysis/resume")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is True
+        assert data["paused"] is False
+        worker_mock.resume.assert_called_once()
+
+    def test_analysis_control_not_available(self) -> None:
+        """Analysis control returns error when no worker provided."""
+        client, _, _ = _make_app()
+        response = client.post("/api/analysis/pause")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is False
+        assert data["message"] == "Analysis control not available"

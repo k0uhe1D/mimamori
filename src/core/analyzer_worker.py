@@ -6,10 +6,15 @@ import logging
 import threading
 from typing import TYPE_CHECKING
 
+import cv2
+import numpy as np
+
 from src.capture.encoding import encode_frame_to_base64
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    import numpy.typing as npt
 
     from src.analyzer.models import AnalysisResult
     from src.config.runtime_config import RuntimeConfig
@@ -18,12 +23,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_DIFF_THRESHOLD = 5.0
+
 
 class AnalyzerWorker:
     """Daemon thread that periodically analyzes frames via LLM.
 
     Reads the latest frame from MonitoringState, sends it to the
     configured LLM provider, and stores the result back in state.
+    Skips analysis when frames haven't changed significantly.
     """
 
     def __init__(
@@ -32,6 +40,7 @@ class AnalyzerWorker:
         settings: Settings,
         runtime_config: RuntimeConfig,
         analyze_fn: Callable[[Settings, str], AnalysisResult],
+        diff_threshold: float = _DEFAULT_DIFF_THRESHOLD,
     ) -> None:
         """Initialize analyzer worker.
 
@@ -40,13 +49,17 @@ class AnalyzerWorker:
             settings: Application settings.
             runtime_config: Runtime-mutable configuration.
             analyze_fn: Callable (settings, base64_image) -> AnalysisResult.
+            diff_threshold: Mean pixel difference threshold to trigger analysis.
         """
         self._state = state
         self._settings = settings
         self._runtime_config = runtime_config
         self._analyze_fn = analyze_fn
+        self._diff_threshold = diff_threshold
         self._stop_event = threading.Event()
+        self._pause_event = threading.Event()
         self._thread: threading.Thread | None = None
+        self._last_analyzed_frame: npt.NDArray[np.uint8] | None = None
 
     def start(self) -> None:
         """Start the analyzer worker daemon thread."""
@@ -67,16 +80,56 @@ class AnalyzerWorker:
             self._thread = None
         logger.info("AnalyzerWorker stopped")
 
+    def pause(self) -> None:
+        """Pause analysis (worker thread keeps running but skips analysis)."""
+        self._pause_event.set()
+        logger.info("AnalyzerWorker paused")
+
+    def resume(self) -> None:
+        """Resume analysis after pause."""
+        self._pause_event.clear()
+        logger.info("AnalyzerWorker resumed")
+
+    @property
+    def paused(self) -> bool:
+        """Check if the analyzer is currently paused."""
+        return self._pause_event.is_set()
+
     def _run(self) -> None:
         """Analysis loop."""
         while not self._stop_event.is_set():
-            try:
-                self._analyze_once()
-            except Exception:
-                logger.exception("Analysis failed, will retry next interval")
+            if not self._pause_event.is_set():
+                try:
+                    self._analyze_once()
+                except Exception:
+                    logger.exception("Analysis failed, will retry next interval")
 
             interval = self._runtime_config.analysis_interval_seconds
             self._stop_event.wait(timeout=interval)
+
+    def _is_frame_changed(self, frame: npt.NDArray[np.uint8]) -> bool:
+        """Check if the frame has changed significantly from the last analyzed frame.
+
+        Args:
+            frame: Current frame to compare.
+
+        Returns:
+            True if the frame has changed enough to warrant analysis.
+        """
+        if self._last_analyzed_frame is None:
+            return True
+        if frame.shape != self._last_analyzed_frame.shape:
+            return True
+        diff = cv2.absdiff(frame, self._last_analyzed_frame)
+        mean_diff: float = float(np.mean(diff.astype(np.float64)))
+        if mean_diff < self._diff_threshold:
+            logger.debug(
+                "Frame unchanged (diff=%.2f < threshold=%.2f), skipping",
+                mean_diff,
+                self._diff_threshold,
+            )
+            return False
+        return True
 
     def _analyze_once(self) -> None:
         """Perform a single analysis cycle."""
@@ -85,6 +138,10 @@ class AnalyzerWorker:
             logger.debug("No frame available for analysis")
             return
 
+        if not self._is_frame_changed(frame):
+            return
+
+        self._last_analyzed_frame = frame.copy()
         base64_image = encode_frame_to_base64(frame)
         result = self._analyze_fn(self._settings, base64_image)
         self._state.add_result(result)

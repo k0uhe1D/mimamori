@@ -129,7 +129,8 @@
       <h2>ライブ映像</h2>
       <img src="/stream" alt="Live Stream" id="liveStream">
       <div class="form-actions" style="margin-top:8px;">
-        <button class="btn btn-danger btn-sm" id="streamToggleBtn" onclick="toggleStream()">停止</button>
+        <button class="btn btn-danger btn-sm" id="streamToggleBtn" onclick="toggleStream()">映像停止</button>
+        <button class="btn btn-danger btn-sm" id="analysisToggleBtn" onclick="toggleAnalysis()">解析停止</button>
       </div>
     </div>
     <div class="card result-container">
@@ -383,6 +384,27 @@
           }
         }
       } catch (e) { showToast('ストリーム制御に失敗しました', 'error'); }
+    }
+    var analysisRunning = true;
+    async function toggleAnalysis() {
+      var endpoint = analysisRunning ? '/api/analysis/pause' : '/api/analysis/resume';
+      try {
+        var r = await fetch(endpoint, { method: 'POST' });
+        var d = await r.json();
+        if (d.ok) {
+          analysisRunning = !d.paused;
+          var btn = document.getElementById('analysisToggleBtn');
+          if (analysisRunning) {
+            btn.textContent = '解析停止';
+            btn.className = 'btn btn-danger btn-sm';
+            showToast('解析を再開しました');
+          } else {
+            btn.textContent = '解析再開';
+            btn.className = 'btn btn-success btn-sm';
+            showToast('解析を停止しました');
+          }
+        }
+      } catch (e) { showToast('解析制御に失敗しました', 'error'); }
     }
     // Initial load
     loadSettings();
