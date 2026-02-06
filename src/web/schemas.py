@@ -48,3 +48,27 @@ class SettingsUpdateResponse(BaseModel):
 
     analysis_interval_seconds: int
     camera_url: str
+
+
+class CameraSwapRequest(BaseModel):
+    """Request for POST /api/camera/swap endpoint."""
+
+    camera_url: str | None = None
+    camera_device_index: int | None = None
+
+
+class CameraSwapResponse(BaseModel):
+    """Response for POST /api/camera/swap endpoint."""
+
+    ok: bool
+    camera_url: str
+    camera_device_index: int
+    message: str = ""
+
+
+class StreamControlResponse(BaseModel):
+    """Response for POST /api/stream/stop and /api/stream/start endpoints."""
+
+    ok: bool
+    running: bool
+    message: str = ""

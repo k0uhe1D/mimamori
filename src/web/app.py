@@ -13,17 +13,21 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from src.web.schemas import (
+    CameraSwapRequest,
+    CameraSwapResponse,
     HistoryItem,
     HistoryResponse,
     SettingsUpdateRequest,
     SettingsUpdateResponse,
     StatusResponse,
+    StreamControlResponse,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
     from src.config.runtime_config import RuntimeConfig
+    from src.core.grabber import FrameGrabber
     from src.core.state import MonitoringState
 
 logger = logging.getLogger(__name__)
@@ -34,12 +38,16 @@ _TEMPLATES_DIR = Path(__file__).parent / "templates"
 def create_app(
     state: MonitoringState,
     runtime_config: RuntimeConfig,
+    swap_camera_fn: Callable[[str, int], None] | None = None,
+    grabber: FrameGrabber | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Args:
         state: Shared monitoring state.
         runtime_config: Runtime-mutable configuration.
+        swap_camera_fn: Callback to swap camera (url, device_index).
+        grabber: FrameGrabber instance for stop/start control.
 
     Returns:
         Configured FastAPI application instance.
@@ -111,6 +119,68 @@ def create_app(
             analysis_interval_seconds=runtime_config.analysis_interval_seconds,
             camera_url=runtime_config.camera_url,
         )
+
+    @app.post("/api/camera/swap")
+    async def api_camera_swap(body: CameraSwapRequest) -> CameraSwapResponse:
+        """Swap to a different camera source."""
+        if swap_camera_fn is None:
+            return CameraSwapResponse(
+                ok=False,
+                camera_url=runtime_config.camera_url,
+                camera_device_index=runtime_config.camera_device_index,
+                message="Camera swap not available",
+            )
+        url = body.camera_url or ""
+        device_index = body.camera_device_index or 0
+        try:
+            swap_camera_fn(url, device_index)
+        except Exception:
+            logger.exception("Failed to swap camera")
+            return CameraSwapResponse(
+                ok=False,
+                camera_url=runtime_config.camera_url,
+                camera_device_index=runtime_config.camera_device_index,
+                message="Failed to swap camera",
+            )
+        runtime_config.camera_url = url
+        runtime_config.camera_device_index = device_index
+        logger.info(
+            "Camera swapped: url=%s, device_index=%d",
+            url,
+            device_index,
+        )
+        return CameraSwapResponse(
+            ok=True,
+            camera_url=url,
+            camera_device_index=device_index,
+            message="Camera swapped successfully",
+        )
+
+    @app.post("/api/stream/stop")
+    async def api_stream_stop() -> StreamControlResponse:
+        """Stop the frame grabber."""
+        if grabber is None:
+            return StreamControlResponse(
+                ok=False, running=False, message="Stream control not available"
+            )
+        grabber.stop()
+        logger.info("Stream stopped via API")
+        return StreamControlResponse(ok=True, running=False, message="Stream stopped")
+
+    @app.post("/api/stream/start")
+    async def api_stream_start() -> StreamControlResponse:
+        """Start the frame grabber."""
+        if grabber is None:
+            return StreamControlResponse(
+                ok=False, running=False, message="Stream control not available"
+            )
+        if grabber.running:
+            return StreamControlResponse(
+                ok=True, running=True, message="Stream already running"
+            )
+        grabber.start()
+        logger.info("Stream started via API")
+        return StreamControlResponse(ok=True, running=True, message="Stream started")
 
     return app
 

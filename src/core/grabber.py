@@ -58,6 +58,26 @@ class FrameGrabber:
             self._thread = None
         logger.info("FrameGrabber stopped")
 
+    @property
+    def running(self) -> bool:
+        """Check if the frame grabber is currently running."""
+        return self._thread is not None and self._thread.is_alive()
+
+    def swap_camera(self, new_camera: CameraProtocol) -> None:
+        """Stop the grabber, replace the camera, and restart.
+
+        Args:
+            new_camera: New camera instance implementing CameraProtocol.
+        """
+        was_running = self.running
+        if was_running:
+            self.stop()
+        self._camera.release()
+        self._camera = new_camera
+        if was_running:
+            self.start()
+        logger.info("Camera swapped successfully")
+
     def _run(self) -> None:
         """Frame grabbing loop."""
         while not self._stop_event.is_set():

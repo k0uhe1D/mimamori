@@ -16,16 +16,19 @@ class RuntimeConfig:
         self,
         analysis_interval_seconds: int = 30,
         camera_url: str = "",
+        camera_device_index: int = 0,
     ) -> None:
         """Initialize runtime configuration.
 
         Args:
             analysis_interval_seconds: Interval between LLM analyses.
             camera_url: RTSP camera URL (empty string for local device).
+            camera_device_index: Local camera device index.
         """
         self._lock = threading.Lock()
         self._analysis_interval_seconds = analysis_interval_seconds
         self._camera_url = camera_url
+        self._camera_device_index = camera_device_index
 
     @property
     def analysis_interval_seconds(self) -> int:
@@ -50,3 +53,15 @@ class RuntimeConfig:
         """Set the camera URL."""
         with self._lock:
             self._camera_url = value
+
+    @property
+    def camera_device_index(self) -> int:
+        """Get the camera device index."""
+        with self._lock:
+            return self._camera_device_index
+
+    @camera_device_index.setter
+    def camera_device_index(self, value: int) -> None:
+        """Set the camera device index."""
+        with self._lock:
+            self._camera_device_index = value

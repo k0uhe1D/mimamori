@@ -88,6 +88,7 @@ def run_web(settings: Settings) -> int:
     runtime_config = RuntimeConfig(
         analysis_interval_seconds=settings.analysis_interval_seconds,
         camera_url=settings.camera_url,
+        camera_device_index=settings.camera_device_index,
     )
 
     grabber = FrameGrabber(camera=camera, state=state)
@@ -98,10 +99,27 @@ def run_web(settings: Settings) -> int:
         analyze_fn=_call_analyzer,
     )
 
+    def swap_camera_fn(url: str, device_index: int) -> None:
+        """Create a new camera and swap the grabber to use it."""
+        if url:
+            new_camera: CameraProtocol = RTSPCamera(url=url)
+        else:
+            new_camera = OpenCVCamera(
+                device_index=device_index,
+                width=settings.capture_width,
+                height=settings.capture_height,
+            )
+        grabber.swap_camera(new_camera)
+
     grabber.start()
     worker.start()
 
-    app = create_app(state=state, runtime_config=runtime_config)
+    app = create_app(
+        state=state,
+        runtime_config=runtime_config,
+        swap_camera_fn=swap_camera_fn,
+        grabber=grabber,
+    )
 
     try:
         logger.info("Starting web dashboard on http://localhost:8000")
