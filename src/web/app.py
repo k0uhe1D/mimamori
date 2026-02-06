@@ -17,6 +17,7 @@ from src.web.schemas import (
     CameraSwapResponse,
     HistoryItem,
     HistoryResponse,
+    SettingsGetResponse,
     SettingsUpdateRequest,
     SettingsUpdateResponse,
     StatusResponse,
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
     from src.config.runtime_config import RuntimeConfig
+    from src.config.settings import Settings
     from src.core.grabber import FrameGrabber
     from src.core.state import MonitoringState
 
@@ -40,6 +42,7 @@ def create_app(
     runtime_config: RuntimeConfig,
     swap_camera_fn: Callable[[str, int], None] | None = None,
     grabber: FrameGrabber | None = None,
+    settings: Settings | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -48,6 +51,7 @@ def create_app(
         runtime_config: Runtime-mutable configuration.
         swap_camera_fn: Callback to swap camera (url, device_index).
         grabber: FrameGrabber instance for stop/start control.
+        settings: Application settings (for API key availability info).
 
     Returns:
         Configured FastAPI application instance.
@@ -103,6 +107,21 @@ def create_app(
         ]
         return HistoryResponse(items=items)
 
+    @app.get("/api/settings")
+    async def api_get_settings() -> SettingsGetResponse:
+        """Get current runtime settings."""
+        return SettingsGetResponse(
+            analysis_interval_seconds=runtime_config.analysis_interval_seconds,
+            camera_url=runtime_config.camera_url,
+            camera_device_index=runtime_config.camera_device_index,
+            llm_provider=runtime_config.llm_provider,
+            llm_model=runtime_config.llm_model,
+            capture_width=runtime_config.capture_width,
+            capture_height=runtime_config.capture_height,
+            openai_available=bool(settings and settings.openai_api_key),
+            gemini_available=bool(settings and settings.gemini_api_key),
+        )
+
     @app.post("/api/settings")
     async def api_update_settings(
         body: SettingsUpdateRequest,
@@ -117,9 +136,29 @@ def create_app(
         if body.camera_url is not None:
             runtime_config.camera_url = body.camera_url
             logger.info("Updated camera_url to %s", body.camera_url)
+        if body.camera_device_index is not None:
+            runtime_config.camera_device_index = body.camera_device_index
+            logger.info("Updated camera_device_index to %d", body.camera_device_index)
+        if body.llm_provider is not None:
+            runtime_config.llm_provider = body.llm_provider
+            logger.info("Updated llm_provider to %s", body.llm_provider)
+        if body.llm_model is not None:
+            runtime_config.llm_model = body.llm_model
+            logger.info("Updated llm_model to %s", body.llm_model)
+        if body.capture_width is not None:
+            runtime_config.capture_width = body.capture_width
+            logger.info("Updated capture_width to %d", body.capture_width)
+        if body.capture_height is not None:
+            runtime_config.capture_height = body.capture_height
+            logger.info("Updated capture_height to %d", body.capture_height)
         return SettingsUpdateResponse(
             analysis_interval_seconds=runtime_config.analysis_interval_seconds,
             camera_url=runtime_config.camera_url,
+            camera_device_index=runtime_config.camera_device_index,
+            llm_provider=runtime_config.llm_provider,
+            llm_model=runtime_config.llm_model,
+            capture_width=runtime_config.capture_width,
+            capture_height=runtime_config.capture_height,
         )
 
     @app.post("/api/camera/swap")

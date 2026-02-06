@@ -17,6 +17,10 @@ class RuntimeConfig:
         analysis_interval_seconds: int = 30,
         camera_url: str = "",
         camera_device_index: int = 0,
+        llm_provider: str = "openai",
+        llm_model: str = "gpt-4o",
+        capture_width: int = 640,
+        capture_height: int = 480,
     ) -> None:
         """Initialize runtime configuration.
 
@@ -24,11 +28,19 @@ class RuntimeConfig:
             analysis_interval_seconds: Interval between LLM analyses.
             camera_url: RTSP camera URL (empty string for local device).
             camera_device_index: Local camera device index.
+            llm_provider: LLM provider ("openai" or "gemini").
+            llm_model: LLM model name.
+            capture_width: Capture width in pixels.
+            capture_height: Capture height in pixels.
         """
         self._lock = threading.Lock()
         self._analysis_interval_seconds = analysis_interval_seconds
         self._camera_url = camera_url
         self._camera_device_index = camera_device_index
+        self._llm_provider = llm_provider
+        self._llm_model = llm_model
+        self._capture_width = capture_width
+        self._capture_height = capture_height
 
     @property
     def analysis_interval_seconds(self) -> int:
@@ -65,3 +77,51 @@ class RuntimeConfig:
         """Set the camera device index."""
         with self._lock:
             self._camera_device_index = value
+
+    @property
+    def llm_provider(self) -> str:
+        """Get the LLM provider."""
+        with self._lock:
+            return self._llm_provider
+
+    @llm_provider.setter
+    def llm_provider(self, value: str) -> None:
+        """Set the LLM provider."""
+        with self._lock:
+            self._llm_provider = value
+
+    @property
+    def llm_model(self) -> str:
+        """Get the LLM model name."""
+        with self._lock:
+            return self._llm_model
+
+    @llm_model.setter
+    def llm_model(self, value: str) -> None:
+        """Set the LLM model name."""
+        with self._lock:
+            self._llm_model = value
+
+    @property
+    def capture_width(self) -> int:
+        """Get the capture width in pixels."""
+        with self._lock:
+            return self._capture_width
+
+    @capture_width.setter
+    def capture_width(self, value: int) -> None:
+        """Set the capture width in pixels."""
+        with self._lock:
+            self._capture_width = value
+
+    @property
+    def capture_height(self) -> int:
+        """Get the capture height in pixels."""
+        with self._lock:
+            return self._capture_height
+
+    @capture_height.setter
+    def capture_height(self, value: int) -> None:
+        """Set the capture height in pixels."""
+        with self._lock:
+            self._capture_height = value

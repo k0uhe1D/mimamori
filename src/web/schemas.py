@@ -38,11 +38,30 @@ class HistoryResponse(BaseModel):
     items: list[HistoryItem]
 
 
+class SettingsGetResponse(BaseModel):
+    """Response for GET /api/settings endpoint."""
+
+    analysis_interval_seconds: int
+    camera_url: str
+    camera_device_index: int
+    llm_provider: str
+    llm_model: str
+    capture_width: int
+    capture_height: int
+    openai_available: bool
+    gemini_available: bool
+
+
 class SettingsUpdateRequest(BaseModel):
     """Request for POST /api/settings endpoint."""
 
     analysis_interval_seconds: int | None = None
     camera_url: str | None = None
+    camera_device_index: int | None = None
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    capture_width: int | None = None
+    capture_height: int | None = None
 
 
 class SettingsUpdateResponse(BaseModel):
@@ -50,6 +69,11 @@ class SettingsUpdateResponse(BaseModel):
 
     analysis_interval_seconds: int
     camera_url: str
+    camera_device_index: int
+    llm_provider: str
+    llm_model: str
+    capture_width: int
+    capture_height: int
 
 
 class CameraSwapRequest(BaseModel):
