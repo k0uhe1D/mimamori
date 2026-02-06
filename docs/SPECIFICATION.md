@@ -150,21 +150,41 @@
 
 ## 5. 開発手法・ルール
 
-### 5.1 Git / GitHub ワークフロー
+### 5.1 Git ブランチ戦略（軽量 Gitflow）
 
-- **PR ベース開発**: 必ずブランチを切り、PR を作成する。main への直接 push 禁止
+```
+main（本番: Raspi にデプロイされる安定版）
+  └── develop（統合ブランチ: エージェントの成果物をここにマージ）
+        ├── feat/*  (feature ブランチ)
+        └── fix/*   (bugfix ブランチ)
+```
+
+| ブランチ | 用途 | 直接 push |
+|---|---|---|
+| main | 本番（Raspi デプロイ） | 禁止 |
+| develop | 統合ブランチ（PR のマージ先） | 禁止 |
+| feat/* | 機能開発 | — |
+| fix/* | バグ修正 | — |
+
+- feature/fix ブランチは **develop から切り、develop に PR** を出す
+- リリース時のみ **develop → main** へ PR を作成する
+- 複数エージェント同時作業時はモジュール境界（capture / recorder / analyzer）で分割し、同一ファイルへの同時変更を避ける
+
+### 5.2 Git / GitHub ワークフロー
+
+- **PR ベース開発**: 必ずブランチを切り、PR を作成する。main・develop への直接 push 禁止
 - **ブランチ命名**: `feat/<issue番号>-<短い説明>`, `fix/<issue番号>-<短い説明>`, `chore/<説明>`
 - **PR 粒度**: 1 PR = 1 つの論理的変更。300行を超えそうなら分割を検討
 - **コミットメッセージ**: Conventional Commits 形式 (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `ci:`)
 - **PR レビュー**: OpenAI Codex による自動レビュー。明確な PR description を記載すること
 
-### 5.2 タスク管理
+### 5.3 タスク管理
 
 - タスクや TODO は GitHub Issues に作成する
 - バグ発見時は即座に GitHub Issue を作成し、適切なラベルを付与
 - GitHub Projects Board でタスクを管理
 
-### 5.3 CI/CD
+### 5.4 CI/CD
 
 - テスト・リント・デプロイは GitHub Actions で実行
 - PR には CI チェックを必須とする
@@ -175,14 +195,14 @@
 | mypy | 型チェック |
 | pytest | テスト |
 
-### 5.4 コード品質
+### 5.5 コード品質
 
 - Python 3.12 以上を対象
 - 型ヒントを必ず付ける
 - docstring を関数・クラスに付ける
 - ruff による統一フォーマット（line-length: 88）
 
-### 5.5 ディレクトリ構成
+### 5.6 ディレクトリ構成
 
 ```
 mimamori/
