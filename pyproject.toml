@@ -19,6 +19,9 @@ dev = [
     "pytest>=8.0",
 ]
 
+[project.scripts]
+mimamori = "src.__main__:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 
