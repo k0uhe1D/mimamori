@@ -111,3 +111,81 @@ class TestAnalyzerWorker:
         worker.start()
         worker.stop()
         worker.stop()  # Should not raise
+
+    def test_pause_skips_analysis(self) -> None:
+        """AnalyzerWorker does not analyze when paused."""
+        state = MonitoringState()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame)
+
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(analysis_interval_seconds=1)
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=_fake_analyze,
+        )
+        worker.pause()
+        worker.start()
+        time.sleep(0.5)
+        worker.stop()
+
+        assert state.get_latest_result() is None
+        assert worker.paused
+
+    def test_resume_after_pause(self) -> None:
+        """AnalyzerWorker resumes analysis after being paused."""
+        state = MonitoringState()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame)
+
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(analysis_interval_seconds=1)
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=_fake_analyze,
+        )
+        worker.pause()
+        worker.start()
+        time.sleep(0.3)
+        assert state.get_latest_result() is None
+        worker.resume()
+        assert not worker.paused
+        time.sleep(1.5)
+        worker.stop()
+
+        assert state.get_latest_result() is not None
+
+    def test_skips_unchanged_frame(self) -> None:
+        """AnalyzerWorker skips analysis when frame is unchanged."""
+        call_count = 0
+
+        def counting_analyze(_settings: Settings, _base64_image: str) -> AnalysisResult:
+            nonlocal call_count
+            call_count += 1
+            return _fake_analyze(_settings, _base64_image)
+
+        state = MonitoringState()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame)
+
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(analysis_interval_seconds=1)
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=counting_analyze,
+        )
+        worker.start()
+        time.sleep(2.5)
+        worker.stop()
+
+        # First call analyzes, subsequent ones skip (same frame)
+        assert call_count == 1

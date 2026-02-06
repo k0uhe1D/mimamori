@@ -98,3 +98,11 @@ class StreamControlResponse(BaseModel):
     ok: bool
     running: bool
     message: str = ""
+
+
+class AnalysisControlResponse(BaseModel):
+    """Response for POST /api/analysis/pause and /api/analysis/resume."""
+
+    ok: bool
+    paused: bool
+    message: str = ""
