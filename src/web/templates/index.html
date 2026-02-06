@@ -6,154 +6,225 @@
   <title>mimamori - 新生児モニタリング</title>
   <style>
     :root {
-      --bg: #f5f5f5;
+      --bg: #f0f2f5;
       --card-bg: #fff;
-      --primary: #2c3e50;
-      --accent: #3498db;
-      --accent-hover: #2980b9;
+      --primary: #1a2332;
+      --primary-light: #2c3e50;
+      --accent: #4a90d9;
+      --accent-hover: #3a7bc8;
       --danger: #e74c3c;
       --danger-hover: #c0392b;
+      --danger-light: #fde8e8;
       --success: #27ae60;
       --success-hover: #219a52;
-      --text: #333;
-      --text-light: #555;
-      --text-muted: #999;
-      --border: #eee;
-      --border-dark: #ddd;
-      --tag-bg: #eaf2f8;
-      --radius: 8px;
+      --warning: #e67e22;
+      --warning-hover: #d35400;
+      --text: #2c3e50;
+      --text-light: #5a6a7a;
+      --text-muted: #95a5a6;
+      --border: #e8ecf1;
+      --border-dark: #d5dbe3;
+      --tag-bg: #e8f4fd;
+      --tag-text: #2980b9;
+      --radius: 10px;
+      --radius-sm: 6px;
       --tap-size: 44px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    /* Header */
     .header {
-      background: var(--primary); color: #fff; padding: 12px 16px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: #fff; padding: 14px 16px;
       display: flex; justify-content: space-between; align-items: center;
       position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
     }
-    .header h1 { font-size: 1.1em; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #2ecc71; display: inline-block; margin-right: 6px; }
-    .alert-banner { background: var(--danger); color: #fff; padding: 10px 16px; display: none; font-weight: bold; }
+    .header h1 { font-size: 1.1em; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 10px; font-size: 0.85em; opacity: 0.9; }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #2ecc71;
+      display: inline-block; margin-right: 6px;
+      box-shadow: 0 0 6px rgba(46,204,113,0.5);
+    }
+    .status-dot.active { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(46,204,113,0.5); }
+      50% { box-shadow: 0 0 12px rgba(46,204,113,0.8); }
+    }
+    .rec-badge {
+      background: var(--danger); color: #fff; padding: 2px 8px;
+      border-radius: 4px; font-size: 0.75em; font-weight: 700;
+      display: none; animation: recBlink 1s infinite;
+    }
+    @keyframes recBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    /* Alert */
+    .alert-banner {
+      background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%);
+      color: #fff; padding: 12px 16px; display: none;
+      font-weight: 600; font-size: 0.95em;
+      box-shadow: 0 2px 8px rgba(231,76,60,0.3);
+    }
+    /* Main layout */
     .main { display: flex; flex-direction: column; gap: 12px; padding: 12px; max-width: 1200px; margin: 0 auto; }
-    .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; }
-    .card h2 { font-size: 1em; margin-bottom: 12px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-    .video-container img { width: 100%; border-radius: 4px; background: #000; }
-    .result-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
-    .result-label { font-weight: 600; color: var(--text-light); white-space: nowrap; margin-right: 12px; }
-    .result-value { text-align: right; flex: 1; }
-    .anomaly { color: var(--danger); font-weight: bold; }
-    .action-tag { display: inline-block; background: var(--tag-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+    .card {
+      background: var(--card-bg); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 16px;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover { box-shadow: var(--shadow-lg); }
+    .card h2 {
+      font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 12px; color: var(--text-muted);
+      border-bottom: 2px solid var(--border); padding-bottom: 8px;
+    }
+    /* Video */
+    .video-container img { width: 100%; border-radius: var(--radius-sm); background: #111; aspect-ratio: 4/3; object-fit: cover; }
+    .controls-bar { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    /* Results */
+    .result-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .result-item:last-child { border-bottom: none; }
+    .result-label { font-weight: 600; color: var(--text-light); font-size: 0.9em; }
+    .result-value { text-align: right; flex: 1; margin-left: 12px; }
+    .anomaly { color: var(--danger); font-weight: 700; }
+    .action-tag {
+      display: inline-block; background: var(--tag-bg); color: var(--tag-text);
+      padding: 3px 10px; border-radius: 20px; font-size: 0.8em; margin: 2px;
+      font-weight: 500;
+    }
+    .confidence-badge {
+      display: inline-block; padding: 2px 10px; border-radius: 20px;
+      font-size: 0.8em; font-weight: 600;
+    }
+    .confidence-high { background: #e8f8f0; color: var(--success); }
+    .confidence-medium { background: #fef5e7; color: var(--warning); }
+    .confidence-low { background: var(--danger-light); color: var(--danger); }
     /* Buttons */
     .btn {
       min-height: var(--tap-size); min-width: var(--tap-size);
       padding: 10px 16px; background: var(--accent); color: #fff;
-      border: none; border-radius: var(--radius); cursor: pointer;
-      font-size: 0.9em; font-weight: 600; touch-action: manipulation;
+      border: none; border-radius: var(--radius-sm); cursor: pointer;
+      font-size: 0.85em; font-weight: 600; touch-action: manipulation;
+      transition: all 0.15s;
     }
-    .btn:hover { background: var(--accent-hover); }
-    .btn:active { transform: scale(0.97); }
+    .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn:active { transform: scale(0.97) translateY(0); }
     .btn-danger { background: var(--danger); }
     .btn-danger:hover { background: var(--danger-hover); }
     .btn-success { background: var(--success); }
     .btn-success:hover { background: var(--success-hover); }
-    .btn-sm { min-height: 36px; padding: 6px 12px; font-size: 0.85em; }
+    .btn-warning { background: var(--warning); }
+    .btn-warning:hover { background: var(--warning-hover); }
+    .btn-sm { min-height: 36px; padding: 6px 14px; }
+    .btn-outline { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+    .btn-outline:hover { background: var(--accent); color: #fff; }
     /* Settings */
     details { margin-bottom: 0; }
     details summary {
-      font-size: 1em; font-weight: 600; color: var(--primary);
-      cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border);
+      font-size: 0.95em; font-weight: 600; color: var(--text);
+      cursor: pointer; padding: 10px 0;
       list-style: none; display: flex; justify-content: space-between; align-items: center;
     }
-    details summary::after { content: '\25B6'; font-size: 0.7em; transition: transform 0.2s; }
+    details + details { border-top: 1px solid var(--border); }
+    details summary::after { content: '\25B6'; font-size: 0.65em; color: var(--text-muted); transition: transform 0.2s; }
     details[open] summary::after { transform: rotate(90deg); }
     details summary::-webkit-details-marker { display: none; }
-    .settings-section { padding-top: 12px; }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.9em; color: var(--text-light); }
+    .settings-section { padding: 12px 0 4px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.85em; color: var(--text-light); }
     .form-group input, .form-group select {
-      width: 100%; padding: 10px; border: 1px solid var(--border-dark);
-      border-radius: var(--radius); font-size: 1em; min-height: var(--tap-size);
+      width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-sm); font-size: 1em; min-height: var(--tap-size);
+      transition: border-color 0.2s;
     }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(74,144,217,0.15); }
     .form-row-inline { display: flex; gap: 8px; align-items: flex-end; }
     .form-row-inline .form-group { flex: 1; margin-bottom: 0; }
-    .form-row-inline .btn { align-self: flex-end; }
-    .form-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-    /* History - card (mobile) */
+    .form-actions { display: flex; gap: 8px; margin-top: 12px; }
+    /* History cards (mobile) */
     .history-cards { display: flex; flex-direction: column; gap: 8px; }
     .history-card {
-      background: var(--bg); border-radius: var(--radius); padding: 12px;
+      background: var(--bg); border-radius: var(--radius-sm); padding: 12px;
       border-left: 3px solid var(--accent);
     }
-    .history-card.has-anomaly { border-left-color: var(--danger); }
-    .history-card-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85em; color: var(--text-muted); }
+    .history-card.has-anomaly { border-left-color: var(--danger); background: #fef9f9; }
+    .history-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .history-card-time { font-size: 0.8em; color: var(--text-muted); font-weight: 600; }
     .history-card-body { font-size: 0.9em; }
     .history-card-row { display: flex; justify-content: space-between; padding: 3px 0; }
-    .history-card-label { font-weight: 600; color: var(--text-light); }
-    /* History - table (desktop) */
+    .history-card-label { font-weight: 600; color: var(--text-light); font-size: 0.85em; }
+    /* History table (desktop) */
     .history-table { display: none; }
     .history-table table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-    .history-table th { text-align: left; padding: 8px; background: #f8f8f8; border-bottom: 2px solid var(--border-dark); }
-    .history-table td { padding: 8px; border-bottom: 1px solid var(--border); }
-    .no-data { color: var(--text-muted); font-style: italic; padding: 20px 0; text-align: center; }
+    .history-table th { text-align: left; padding: 10px 8px; background: var(--bg); border-bottom: 2px solid var(--border-dark); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .history-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    .history-table tr:hover { background: #f8fafc; }
+    .no-data { color: var(--text-muted); font-style: italic; padding: 24px 0; text-align: center; }
     /* Toast */
-    .toast-container { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
     .toast {
-      background: var(--primary); color: #fff; padding: 10px 20px;
-      border-radius: var(--radius); font-size: 0.9em; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      animation: toastIn 0.3s ease;
+      background: var(--primary); color: #fff; padding: 12px 24px;
+      border-radius: var(--radius); font-size: 0.9em; font-weight: 500;
+      box-shadow: var(--shadow-lg); animation: toastIn 0.3s ease; pointer-events: auto;
     }
     .toast.success { background: var(--success); }
     .toast.error { background: var(--danger); }
-    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    /* Desktop layout */
+    @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    /* Desktop */
     @media (min-width: 768px) {
-      .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
+      .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; }
       .video-container { grid-column: 1 / 2; }
       .result-container { grid-column: 2 / 3; }
-      .history-container { grid-column: 1 / -1; }
-      .settings-container { grid-column: 1 / -1; }
+      .history-container, .settings-container { grid-column: 1 / -1; }
       .history-cards { display: none; }
       .history-table { display: block; }
       .form-row-inline .form-group { max-width: 300px; }
+      .settings-container .card-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1><span class="status-dot" id="statusDot"></span>mimamori</h1>
-    <span id="lastUpdate">--</span>
+    <h1><span class="status-dot active" id="statusDot"></span>mimamori</h1>
+    <div class="header-right">
+      <span class="rec-badge" id="recBadge">REC</span>
+      <span id="lastUpdate">--</span>
+    </div>
   </div>
   <div class="alert-banner" id="alertBanner"></div>
   <div class="main">
     <div class="card video-container">
-      <h2>ライブ映像</h2>
+      <h2>Live</h2>
       <img src="/stream" alt="Live Stream" id="liveStream">
-      <div class="form-actions" style="margin-top:8px;">
+      <div class="controls-bar">
         <button class="btn btn-danger btn-sm" id="streamToggleBtn" onclick="toggleStream()">映像停止</button>
         <button class="btn btn-danger btn-sm" id="analysisToggleBtn" onclick="toggleAnalysis()">解析停止</button>
-        <button class="btn btn-sm" id="recordToggleBtn" onclick="toggleRecording()" style="background:#e67e22;">録画開始</button>
+        <button class="btn btn-warning btn-sm" id="recordToggleBtn" onclick="toggleRecording()">録画開始</button>
       </div>
     </div>
     <div class="card result-container">
-      <h2>最新解析結果</h2>
+      <h2>Analysis</h2>
       <div id="resultArea">
         <div class="no-data">解析結果を待っています...</div>
       </div>
     </div>
     <div class="card history-container">
-      <h2>解析履歴</h2>
+      <h2>History</h2>
       <div class="history-cards" id="historyCards">
         <div class="no-data">履歴なし</div>
       </div>
       <div class="history-table">
         <table>
-          <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>動作・状態</th><th>要約</th><th>異常</th></tr></thead>
+          <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>動作</th><th>要約</th><th>異常</th></tr></thead>
           <tbody id="historyBody"><tr><td colspan="6" class="no-data">履歴なし</td></tr></tbody>
         </table>
       </div>
     </div>
     <div class="card settings-container">
-      <details id="settingsAnalysis">
+      <h2>Settings</h2>
+      <details id="settingsAnalysis" open>
         <summary>解析設定</summary>
         <div class="settings-section">
           <div class="form-group">
@@ -182,31 +253,21 @@
           <div class="form-group">
             <label>カメラ URL（RTSP）</label>
             <div class="form-row-inline">
-              <div class="form-group">
-                <input type="text" id="cameraUrlInput" placeholder="rtsp://...">
-              </div>
-              <button class="btn btn-sm" onclick="swapCameraUrl()">切替</button>
+              <div class="form-group"><input type="text" id="cameraUrlInput" placeholder="rtsp://192.168.x.x:8554/video"></div>
+              <button class="btn btn-outline btn-sm" onclick="swapCameraUrl()">切替</button>
             </div>
           </div>
           <div class="form-group">
             <label>デバイスインデックス</label>
             <div class="form-row-inline">
-              <div class="form-group">
-                <input type="number" id="deviceIndexInput" min="0" max="10" value="0">
-              </div>
-              <button class="btn btn-sm" onclick="swapCameraDevice()">切替</button>
+              <div class="form-group"><input type="number" id="deviceIndexInput" min="0" max="10" value="0"></div>
+              <button class="btn btn-outline btn-sm" onclick="swapCameraDevice()">切替</button>
             </div>
           </div>
           <div class="form-row-inline" style="margin-top:12px;">
-            <div class="form-group">
-              <label>幅</label>
-              <input type="number" id="captureWidthInput" min="160" max="3840" value="640">
-            </div>
-            <div class="form-group">
-              <label>高さ</label>
-              <input type="number" id="captureHeightInput" min="120" max="2160" value="480">
-            </div>
-            <button class="btn btn-sm" onclick="saveCaptureSize()">保存</button>
+            <div class="form-group"><label>幅</label><input type="number" id="captureWidthInput" min="160" max="3840" value="640"></div>
+            <div class="form-group"><label>高さ</label><input type="number" id="captureHeightInput" min="120" max="2160" value="480"></div>
+            <button class="btn btn-outline btn-sm" onclick="saveCaptureSize()">保存</button>
           </div>
         </div>
       </details>
@@ -214,27 +275,21 @@
   </div>
   <div class="toast-container" id="toastContainer"></div>
   <script>
-    function formatTime(ts) {
-      return new Date(ts).toLocaleTimeString('ja-JP');
-    }
+    function formatTime(ts) { return new Date(ts).toLocaleTimeString('ja-JP'); }
     function showToast(msg, type) {
       type = type || 'success';
-      var container = document.getElementById('toastContainer');
-      var el = document.createElement('div');
-      el.className = 'toast ' + type;
-      el.textContent = msg;
-      container.appendChild(el);
-      setTimeout(function() { el.remove(); }, 3000);
+      var c = document.getElementById('toastContainer'), el = document.createElement('div');
+      el.className = 'toast ' + type; el.textContent = msg;
+      c.appendChild(el); setTimeout(function() { el.remove(); }, 3000);
     }
-    function escapeHtml(str) {
-      var div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
+    function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function confidenceBadge(c) {
+      var cls = c === 'high' ? 'confidence-high' : c === 'medium' ? 'confidence-medium' : 'confidence-low';
+      return '<span class="confidence-badge ' + cls + '">' + escapeHtml(c) + '</span>';
     }
     async function loadSettings() {
       try {
-        var r = await fetch('/api/settings');
-        var d = await r.json();
+        var r = await fetch('/api/settings'), d = await r.json();
         document.getElementById('intervalInput').value = d.analysis_interval_seconds;
         document.getElementById('cameraUrlInput').value = d.camera_url || '';
         document.getElementById('deviceIndexInput').value = d.camera_device_index;
@@ -243,66 +298,48 @@
         document.getElementById('modelInput').value = d.llm_model;
         var sel = document.getElementById('providerSelect');
         sel.value = d.llm_provider;
-        // Disable unavailable providers
-        var opts = sel.options;
-        for (var i = 0; i < opts.length; i++) {
-          if (opts[i].value === 'openai') opts[i].disabled = !d.openai_available;
-          if (opts[i].value === 'gemini') opts[i].disabled = !d.gemini_available;
+        for (var i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === 'openai') sel.options[i].disabled = !d.openai_available;
+          if (sel.options[i].value === 'gemini') sel.options[i].disabled = !d.gemini_available;
         }
       } catch (e) { /* ignore */ }
     }
     async function fetchStatus() {
       try {
-        var r = await fetch('/api/status');
-        var d = await r.json();
-        var area = document.getElementById('resultArea');
-        var banner = document.getElementById('alertBanner');
-        var dot = document.getElementById('statusDot');
-        if (!d.has_result) { dot.style.background = '#f39c12'; return; }
-        dot.style.background = '#2ecc71';
+        var r = await fetch('/api/status'), d = await r.json();
+        var area = document.getElementById('resultArea'), banner = document.getElementById('alertBanner'), dot = document.getElementById('statusDot');
+        if (!d.has_result) { dot.style.background = '#f39c12'; dot.style.boxShadow = '0 0 6px rgba(243,156,18,0.5)'; return; }
+        dot.style.background = '#2ecc71'; dot.style.boxShadow = '0 0 6px rgba(46,204,113,0.5)';
         document.getElementById('lastUpdate').textContent = formatTime(d.timestamp);
-        var html = '';
-        html += '<div class="result-item"><span class="result-label">姿勢</span><span class="result-value">' + escapeHtml(d.posture) + '</span></div>';
-        html += '<div class="result-item"><span class="result-label">睡眠状態</span><span class="result-value">' + escapeHtml(d.sleep_state) + '</span></div>';
-        html += '<div class="result-item"><span class="result-label">要約</span><span class="result-value">' + escapeHtml(d.summary) + '</span></div>';
-        html += '<div class="result-item"><span class="result-label">信頼度</span><span class="result-value">' + escapeHtml(d.confidence) + '</span></div>';
+        var h = '';
+        h += '<div class="result-item"><span class="result-label">姿勢</span><span class="result-value">' + escapeHtml(d.posture) + '</span></div>';
+        h += '<div class="result-item"><span class="result-label">睡眠状態</span><span class="result-value">' + escapeHtml(d.sleep_state) + '</span></div>';
+        h += '<div class="result-item"><span class="result-label">要約</span><span class="result-value">' + escapeHtml(d.summary) + '</span></div>';
+        h += '<div class="result-item"><span class="result-label">信頼度</span><span class="result-value">' + confidenceBadge(d.confidence) + '</span></div>';
         if (d.actions && d.actions.length > 0) {
-          html += '<div class="result-item"><span class="result-label">動作</span><span class="result-value">' + d.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') + '</span></div>';
+          h += '<div class="result-item"><span class="result-label">動作</span><span class="result-value">' + d.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') + '</span></div>';
         }
         if (d.anomalies.length > 0) {
-          html += '<div class="result-item"><span class="result-label">異常</span><span class="result-value anomaly">' + d.anomalies.map(escapeHtml).join(', ') + '</span></div>';
+          h += '<div class="result-item"><span class="result-label">異常</span><span class="result-value anomaly">' + d.anomalies.map(escapeHtml).join(', ') + '</span></div>';
           banner.textContent = '\u26A0 異常検知: ' + d.anomalies.join(', ');
           banner.style.display = 'block';
         } else {
-          html += '<div class="result-item"><span class="result-label">異常</span><span class="result-value">なし</span></div>';
+          h += '<div class="result-item"><span class="result-label">異常</span><span class="result-value" style="color:var(--success);">なし</span></div>';
           banner.style.display = 'none';
         }
-        area.innerHTML = html;
-      } catch (e) {
-        document.getElementById('statusDot').style.background = '#e74c3c';
-      }
+        area.innerHTML = h;
+      } catch (e) { document.getElementById('statusDot').style.background = '#e74c3c'; }
     }
     async function fetchHistory() {
       try {
-        var r = await fetch('/api/history');
-        var d = await r.json();
-        // Cards (mobile)
-        var cardsEl = document.getElementById('historyCards');
-        // Table (desktop)
-        var bodyEl = document.getElementById('historyBody');
-        if (d.items.length === 0) {
-          cardsEl.innerHTML = '<div class="no-data">履歴なし</div>';
-          bodyEl.innerHTML = '<tr><td colspan="6" class="no-data">履歴なし</td></tr>';
-          return;
-        }
-        // Cards
+        var r = await fetch('/api/history'), d = await r.json();
+        var cardsEl = document.getElementById('historyCards'), bodyEl = document.getElementById('historyBody');
+        if (d.items.length === 0) { cardsEl.innerHTML = '<div class="no-data">履歴なし</div>'; bodyEl.innerHTML = '<tr><td colspan="6" class="no-data">履歴なし</td></tr>'; return; }
         cardsEl.innerHTML = d.items.map(function(item) {
           var cls = item.anomalies.length > 0 ? 'history-card has-anomaly' : 'history-card';
           var actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') : '-';
-          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : 'なし';
-          return '<div class="' + cls + '">' +
-            '<div class="history-card-header"><span>' + formatTime(item.timestamp) + '</span><span>' + escapeHtml(item.confidence) + '</span></div>' +
-            '<div class="history-card-body">' +
+          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : '<span style="color:var(--success)">なし</span>';
+          return '<div class="' + cls + '"><div class="history-card-header"><span class="history-card-time">' + formatTime(item.timestamp) + '</span>' + confidenceBadge(item.confidence) + '</div><div class="history-card-body">' +
             '<div class="history-card-row"><span class="history-card-label">姿勢</span><span>' + escapeHtml(item.posture) + '</span></div>' +
             '<div class="history-card-row"><span class="history-card-label">睡眠</span><span>' + escapeHtml(item.sleep_state) + '</span></div>' +
             '<div class="history-card-row"><span class="history-card-label">動作</span><span>' + actions + '</span></div>' +
@@ -310,23 +347,20 @@
             '<div class="history-card-row"><span class="history-card-label">異常</span><span>' + anomaly + '</span></div>' +
             '</div></div>';
         }).join('');
-        // Table
         bodyEl.innerHTML = d.items.map(function(item) {
-          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : 'なし';
+          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : '<span style="color:var(--success)">なし</span>';
           var actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') : '-';
           return '<tr><td>' + formatTime(item.timestamp) + '</td><td>' + escapeHtml(item.posture) + '</td><td>' + escapeHtml(item.sleep_state) + '</td><td>' + actions + '</td><td>' + escapeHtml(item.summary) + '</td><td>' + anomaly + '</td></tr>';
         }).join('');
       } catch (e) { /* ignore */ }
     }
     async function saveAnalysisSettings() {
-      var body = {};
-      var interval = parseInt(document.getElementById('intervalInput').value);
+      var body = {}, interval = parseInt(document.getElementById('intervalInput').value);
       if (!isNaN(interval) && interval >= 1) body.analysis_interval_seconds = interval;
       body.llm_provider = document.getElementById('providerSelect').value;
       body.llm_model = document.getElementById('modelInput').value;
       try {
-        var r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        var d = await r.json();
+        var r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), d = await r.json();
         document.getElementById('intervalInput').value = d.analysis_interval_seconds;
         document.getElementById('providerSelect').value = d.llm_provider;
         document.getElementById('modelInput').value = d.llm_model;
@@ -334,14 +368,11 @@
       } catch (e) { showToast('設定の更新に失敗しました', 'error'); }
     }
     async function saveCaptureSize() {
-      var w = parseInt(document.getElementById('captureWidthInput').value);
-      var h = parseInt(document.getElementById('captureHeightInput').value);
-      var body = {};
+      var w = parseInt(document.getElementById('captureWidthInput').value), h = parseInt(document.getElementById('captureHeightInput').value), body = {};
       if (!isNaN(w) && w > 0) body.capture_width = w;
       if (!isNaN(h) && h > 0) body.capture_height = h;
       try {
-        var r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        var d = await r.json();
+        var r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), d = await r.json();
         document.getElementById('captureWidthInput').value = d.capture_width;
         document.getElementById('captureHeightInput').value = d.capture_height;
         showToast('解像度設定を更新しました');
@@ -351,90 +382,41 @@
     async function swapCameraUrl() {
       var url = document.getElementById('cameraUrlInput').value;
       if (!url) return;
-      try {
-        var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) });
-        var d = await r.json();
-        if (d.ok) { showToast('カメラを切り替えました'); } else { showToast(d.message, 'error'); }
-      } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
+      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) }), d = await r.json(); if (d.ok) showToast('カメラを切り替えました'); else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function swapCameraDevice() {
       var idx = parseInt(document.getElementById('deviceIndexInput').value);
       if (isNaN(idx) || idx < 0) return;
-      try {
-        var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) });
-        var d = await r.json();
-        if (d.ok) { showToast('カメラを切り替えました'); } else { showToast(d.message, 'error'); }
-      } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
+      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) }), d = await r.json(); if (d.ok) showToast('カメラを切り替えました'); else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function toggleStream() {
-      var endpoint = streamRunning ? '/api/stream/stop' : '/api/stream/start';
-      try {
-        var r = await fetch(endpoint, { method: 'POST' });
-        var d = await r.json();
-        if (d.ok) {
-          streamRunning = d.running;
-          var btn = document.getElementById('streamToggleBtn');
-          if (streamRunning) {
-            btn.textContent = '停止';
-            btn.className = 'btn btn-danger btn-sm';
-            showToast('ストリームを再開しました');
-          } else {
-            btn.textContent = '再開';
-            btn.className = 'btn btn-success btn-sm';
-            showToast('ストリームを停止しました');
-          }
+      try { var r = await fetch(streamRunning ? '/api/stream/stop' : '/api/stream/start', { method: 'POST' }), d = await r.json();
+        if (d.ok) { streamRunning = d.running; var b = document.getElementById('streamToggleBtn');
+          if (streamRunning) { b.textContent = '映像停止'; b.className = 'btn btn-danger btn-sm'; showToast('ストリームを再開しました'); }
+          else { b.textContent = '映像再開'; b.className = 'btn btn-success btn-sm'; showToast('ストリームを停止しました'); }
         }
       } catch (e) { showToast('ストリーム制御に失敗しました', 'error'); }
     }
     var isRecording = false;
     async function toggleRecording() {
-      var endpoint = isRecording ? '/api/recording/stop' : '/api/recording/start';
-      try {
-        var r = await fetch(endpoint, { method: 'POST' });
-        var d = await r.json();
-        if (d.ok) {
-          isRecording = d.recording;
-          var btn = document.getElementById('recordToggleBtn');
-          if (isRecording) {
-            btn.textContent = '録画停止';
-            btn.className = 'btn btn-danger btn-sm';
-            showToast('録画を開始しました: ' + d.file);
-          } else {
-            btn.textContent = '録画開始';
-            btn.className = 'btn btn-sm';
-            btn.style.background = '#e67e22';
-            showToast('録画を停止しました: ' + d.file);
-          }
+      try { var r = await fetch(isRecording ? '/api/recording/stop' : '/api/recording/start', { method: 'POST' }), d = await r.json();
+        if (d.ok) { isRecording = d.recording; var b = document.getElementById('recordToggleBtn'), badge = document.getElementById('recBadge');
+          if (isRecording) { b.textContent = '録画停止'; b.className = 'btn btn-danger btn-sm'; badge.style.display = 'inline'; showToast('録画を開始しました'); }
+          else { b.textContent = '録画開始'; b.className = 'btn btn-warning btn-sm'; badge.style.display = 'none'; showToast('録画を停止しました'); }
         }
       } catch (e) { showToast('録画制御に失敗しました', 'error'); }
     }
     var analysisRunning = true;
     async function toggleAnalysis() {
-      var endpoint = analysisRunning ? '/api/analysis/pause' : '/api/analysis/resume';
-      try {
-        var r = await fetch(endpoint, { method: 'POST' });
-        var d = await r.json();
-        if (d.ok) {
-          analysisRunning = !d.paused;
-          var btn = document.getElementById('analysisToggleBtn');
-          if (analysisRunning) {
-            btn.textContent = '解析停止';
-            btn.className = 'btn btn-danger btn-sm';
-            showToast('解析を再開しました');
-          } else {
-            btn.textContent = '解析再開';
-            btn.className = 'btn btn-success btn-sm';
-            showToast('解析を停止しました');
-          }
+      try { var r = await fetch(analysisRunning ? '/api/analysis/pause' : '/api/analysis/resume', { method: 'POST' }), d = await r.json();
+        if (d.ok) { analysisRunning = !d.paused; var b = document.getElementById('analysisToggleBtn');
+          if (analysisRunning) { b.textContent = '解析停止'; b.className = 'btn btn-danger btn-sm'; showToast('解析を再開しました'); }
+          else { b.textContent = '解析再開'; b.className = 'btn btn-success btn-sm'; showToast('解析を停止しました'); }
         }
       } catch (e) { showToast('解析制御に失敗しました', 'error'); }
     }
-    // Initial load
-    loadSettings();
-    fetchStatus();
-    fetchHistory();
-    setInterval(fetchStatus, 5000);
-    setInterval(fetchHistory, 10000);
+    loadSettings(); fetchStatus(); fetchHistory();
+    setInterval(fetchStatus, 5000); setInterval(fetchHistory, 10000);
   </script>
 </body>
 </html>
