@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "mimamori"
@@ -9,6 +9,7 @@ description = "新生児モニタリングシステム"
 requires-python = ">=3.12"
 dependencies = [
     "opencv-python>=4.9",
+    "openai>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +18,9 @@ dev = [
     "mypy>=1.13",
     "pytest>=8.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.ruff]
 target-version = "py312"
@@ -38,7 +42,7 @@ select = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["mimamori"]
+known-first-party = ["src"]
 
 [tool.mypy]
 python_version = "3.12"
