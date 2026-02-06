@@ -106,3 +106,12 @@ class AnalysisControlResponse(BaseModel):
     ok: bool
     paused: bool
     message: str = ""
+
+
+class RecordingControlResponse(BaseModel):
+    """Response for POST /api/recording/start and /api/recording/stop."""
+
+    ok: bool
+    recording: bool
+    file: str = ""
+    message: str = ""
