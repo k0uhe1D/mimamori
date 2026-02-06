@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from src.analyzer.models import AnalysisResult
 from src.config.runtime_config import RuntimeConfig
+from src.config.settings import Settings
 from src.core.state import MonitoringState
 from src.web.app import create_app
 
@@ -17,6 +18,23 @@ def _make_app() -> tuple[TestClient, MonitoringState, RuntimeConfig]:
     state = MonitoringState()
     runtime_config = RuntimeConfig(analysis_interval_seconds=30)
     app = create_app(state=state, runtime_config=runtime_config)
+    client = TestClient(app)
+    return client, state, runtime_config
+
+
+def _make_app_with_settings() -> tuple[TestClient, MonitoringState, RuntimeConfig]:
+    """Create a test app with Settings for API key availability."""
+    state = MonitoringState()
+    runtime_config = RuntimeConfig(
+        analysis_interval_seconds=5,
+        llm_provider="gemini",
+        llm_model="gemini-2.5-flash",
+    )
+    settings = Settings(
+        openai_api_key="test-openai-key",
+        gemini_api_key="test-gemini-key",
+    )
+    app = create_app(state=state, runtime_config=runtime_config, settings=settings)
     client = TestClient(app)
     return client, state, runtime_config
 
@@ -137,6 +155,65 @@ class TestApiSettings:
         data = response.json()
         assert data["camera_url"] == "rtsp://new/stream"
         assert runtime_config.camera_url == "rtsp://new/stream"
+
+    def test_update_llm_settings(self) -> None:
+        """POST /api/settings updates LLM provider and model."""
+        client, _, runtime_config = _make_app()
+        response = client.post(
+            "/api/settings",
+            json={"llm_provider": "gemini", "llm_model": "gemini-2.5-flash"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["llm_provider"] == "gemini"
+        assert data["llm_model"] == "gemini-2.5-flash"
+        assert runtime_config.llm_provider == "gemini"
+        assert runtime_config.llm_model == "gemini-2.5-flash"
+
+    def test_update_capture_dimensions(self) -> None:
+        """POST /api/settings updates capture dimensions."""
+        client, _, runtime_config = _make_app()
+        response = client.post(
+            "/api/settings",
+            json={"capture_width": 1280, "capture_height": 720},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["capture_width"] == 1280
+        assert data["capture_height"] == 720
+        assert runtime_config.capture_width == 1280
+        assert runtime_config.capture_height == 720
+
+
+class TestApiGetSettings:
+    """Tests for GET /api/settings endpoint."""
+
+    def test_get_settings_defaults(self) -> None:
+        """GET /api/settings returns current runtime config values."""
+        client, _, _ = _make_app()
+        response = client.get("/api/settings")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["analysis_interval_seconds"] == 30
+        assert data["camera_url"] == ""
+        assert data["camera_device_index"] == 0
+        assert data["llm_provider"] == "openai"
+        assert data["llm_model"] == "gpt-4o"
+        assert data["capture_width"] == 640
+        assert data["capture_height"] == 480
+        assert data["openai_available"] is False
+        assert data["gemini_available"] is False
+
+    def test_get_settings_with_api_keys(self) -> None:
+        """GET /api/settings shows provider availability from Settings."""
+        client, _, _ = _make_app_with_settings()
+        response = client.get("/api/settings")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["openai_available"] is True
+        assert data["gemini_available"] is True
+        assert data["llm_provider"] == "gemini"
+        assert data["llm_model"] == "gemini-2.5-flash"
 
 
 class TestApiCameraSwap:

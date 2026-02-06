@@ -89,14 +89,38 @@ def run_web(settings: Settings) -> int:
         analysis_interval_seconds=settings.analysis_interval_seconds,
         camera_url=settings.camera_url,
         camera_device_index=settings.camera_device_index,
+        llm_provider=settings.llm_provider,
+        llm_model=(
+            settings.gemini_model
+            if settings.llm_provider == "gemini"
+            else settings.openai_model
+        ),
+        capture_width=settings.capture_width,
+        capture_height=settings.capture_height,
     )
+
+    def _runtime_call_analyzer(settings: Settings, base64_image: str) -> AnalysisResult:
+        """Route analysis using runtime-mutable provider/model settings."""
+        provider = runtime_config.llm_provider
+        model = runtime_config.llm_model
+        if provider == "gemini":
+            return analyze_frame_gemini(
+                base64_image=base64_image,
+                api_key=settings.gemini_api_key,
+                model=model,
+            )
+        return analyze_frame(
+            base64_image=base64_image,
+            api_key=settings.openai_api_key,
+            model=model,
+        )
 
     grabber = FrameGrabber(camera=camera, state=state)
     worker = AnalyzerWorker(
         state=state,
         settings=settings,
         runtime_config=runtime_config,
-        analyze_fn=_call_analyzer,
+        analyze_fn=_runtime_call_analyzer,
     )
 
     def swap_camera_fn(url: str, device_index: int) -> None:
@@ -119,6 +143,7 @@ def run_web(settings: Settings) -> int:
         runtime_config=runtime_config,
         swap_camera_fn=swap_camera_fn,
         grabber=grabber,
+        settings=settings,
     )
 
     try:

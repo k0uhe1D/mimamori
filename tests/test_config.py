@@ -97,15 +97,28 @@ class TestRuntimeConfig:
         config = RuntimeConfig()
         assert config.analysis_interval_seconds == 30
         assert config.camera_url == ""
+        assert config.camera_device_index == 0
+        assert config.llm_provider == "openai"
+        assert config.llm_model == "gpt-4o"
+        assert config.capture_width == 640
+        assert config.capture_height == 480
 
     def test_custom_values(self) -> None:
         """RuntimeConfig accepts custom initial values."""
         config = RuntimeConfig(
             analysis_interval_seconds=10,
             camera_url="rtsp://example.com/stream",
+            llm_provider="gemini",
+            llm_model="gemini-2.5-flash",
+            capture_width=1280,
+            capture_height=720,
         )
         assert config.analysis_interval_seconds == 10
         assert config.camera_url == "rtsp://example.com/stream"
+        assert config.llm_provider == "gemini"
+        assert config.llm_model == "gemini-2.5-flash"
+        assert config.capture_width == 1280
+        assert config.capture_height == 720
 
     def test_mutable_analysis_interval(self) -> None:
         """RuntimeConfig.analysis_interval_seconds can be changed."""
@@ -118,3 +131,23 @@ class TestRuntimeConfig:
         config = RuntimeConfig()
         config.camera_url = "rtsp://new-url/stream"
         assert config.camera_url == "rtsp://new-url/stream"
+
+    def test_mutable_llm_provider(self) -> None:
+        """RuntimeConfig.llm_provider can be changed."""
+        config = RuntimeConfig()
+        config.llm_provider = "gemini"
+        assert config.llm_provider == "gemini"
+
+    def test_mutable_llm_model(self) -> None:
+        """RuntimeConfig.llm_model can be changed."""
+        config = RuntimeConfig()
+        config.llm_model = "gpt-4o-mini"
+        assert config.llm_model == "gpt-4o-mini"
+
+    def test_mutable_capture_dimensions(self) -> None:
+        """RuntimeConfig capture dimensions can be changed."""
+        config = RuntimeConfig()
+        config.capture_width = 1920
+        config.capture_height = 1080
+        assert config.capture_width == 1920
+        assert config.capture_height == 1080
