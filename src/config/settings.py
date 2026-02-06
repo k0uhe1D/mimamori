@@ -28,11 +28,11 @@ class Settings:
     gemini_api_key: str = ""
     camera_device_index: int = 0
     camera_url: str = ""
-    analysis_interval_seconds: int = 30
+    analysis_interval_seconds: int = 5
     capture_width: int = 640
     capture_height: int = 480
     openai_model: str = "gpt-4o"
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -44,11 +44,11 @@ class Settings:
             GEMINI_API_KEY: Google Gemini API key (required when provider is gemini).
             CAMERA_DEVICE_INDEX (optional, default 0): Camera device index.
             CAMERA_URL (optional): RTSP camera URL.
-            ANALYSIS_INTERVAL_SECONDS (optional, default 30): Analysis interval.
+            ANALYSIS_INTERVAL_SECONDS (optional, default 5): Analysis interval.
             CAPTURE_WIDTH (optional, default 640): Capture width.
             CAPTURE_HEIGHT (optional, default 480): Capture height.
             OPENAI_MODEL (optional, default "gpt-4o"): OpenAI model name.
-            GEMINI_MODEL (optional, default "gemini-2.0-flash"): Gemini model name.
+            GEMINI_MODEL (optional, default "gemini-2.5-flash"): Gemini model name.
 
         Raises:
             ValueError: If required API key for the selected provider is not set.
@@ -77,10 +77,10 @@ class Settings:
             camera_device_index=int(os.environ.get("CAMERA_DEVICE_INDEX", "0")),
             camera_url=os.environ.get("CAMERA_URL", ""),
             analysis_interval_seconds=int(
-                os.environ.get("ANALYSIS_INTERVAL_SECONDS", "30")
+                os.environ.get("ANALYSIS_INTERVAL_SECONDS", "5")
             ),
             capture_width=int(os.environ.get("CAPTURE_WIDTH", "640")),
             capture_height=int(os.environ.get("CAPTURE_HEIGHT", "480")),
             openai_model=os.environ.get("OPENAI_MODEL", "gpt-4o"),
-            gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+            gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         )
