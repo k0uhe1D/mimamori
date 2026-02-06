@@ -20,7 +20,7 @@ class TestSettings:
         assert settings.openai_api_key == "test-key-123"
         assert settings.llm_provider == "openai"
         assert settings.camera_device_index == 0
-        assert settings.analysis_interval_seconds == 30
+        assert settings.analysis_interval_seconds == 5
 
     def test_from_env_missing_openai_key_raises(self) -> None:
         """Settings.from_env() raises ValueError without OPENAI_API_KEY."""

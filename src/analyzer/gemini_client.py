@@ -45,7 +45,7 @@ actionsの記載例:
 def analyze_frame_gemini(
     base64_image: str,
     api_key: str,
-    model: str = "gemini-2.0-flash",
+    model: str = "gemini-2.5-flash",
 ) -> AnalysisResult:
     """Analyze a single frame using Google Gemini Vision API.
 
