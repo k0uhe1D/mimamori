@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.config import Settings
+from src.config import RuntimeConfig, Settings
 
 
 class TestSettings:
@@ -65,6 +65,7 @@ class TestSettings:
             "CAPTURE_WIDTH": "1280",
             "CAPTURE_HEIGHT": "720",
             "OPENAI_MODEL": "gpt-4o-mini",
+            "CAMERA_URL": "rtsp://192.168.1.100:8554/video",
         }
         with patch.dict(os.environ, env):
             settings = Settings.from_env()
@@ -73,9 +74,47 @@ class TestSettings:
         assert settings.capture_width == 1280
         assert settings.capture_height == 720
         assert settings.openai_model == "gpt-4o-mini"
+        assert settings.camera_url == "rtsp://192.168.1.100:8554/video"
+
+    def test_camera_url_defaults_to_empty(self) -> None:
+        """Settings.camera_url defaults to empty string."""
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "key"}):
+            settings = Settings.from_env()
+        assert settings.camera_url == ""
 
     def test_settings_is_frozen(self) -> None:
         """Settings instances are immutable."""
         settings = Settings(openai_api_key="key")
         with pytest.raises(AttributeError):
             settings.openai_api_key = "new-key"  # type: ignore[misc]
+
+
+class TestRuntimeConfig:
+    """Tests for RuntimeConfig."""
+
+    def test_default_values(self) -> None:
+        """RuntimeConfig has sensible defaults."""
+        config = RuntimeConfig()
+        assert config.analysis_interval_seconds == 30
+        assert config.camera_url == ""
+
+    def test_custom_values(self) -> None:
+        """RuntimeConfig accepts custom initial values."""
+        config = RuntimeConfig(
+            analysis_interval_seconds=10,
+            camera_url="rtsp://example.com/stream",
+        )
+        assert config.analysis_interval_seconds == 10
+        assert config.camera_url == "rtsp://example.com/stream"
+
+    def test_mutable_analysis_interval(self) -> None:
+        """RuntimeConfig.analysis_interval_seconds can be changed."""
+        config = RuntimeConfig()
+        config.analysis_interval_seconds = 60
+        assert config.analysis_interval_seconds == 60
+
+    def test_mutable_camera_url(self) -> None:
+        """RuntimeConfig.camera_url can be changed."""
+        config = RuntimeConfig()
+        config.camera_url = "rtsp://new-url/stream"
+        assert config.camera_url == "rtsp://new-url/stream"

@@ -15,6 +15,7 @@ class Settings:
         openai_api_key: OpenAI API key for GPT-4o Vision API.
         gemini_api_key: Google Gemini API key.
         camera_device_index: Camera device index for OpenCV VideoCapture.
+        camera_url: RTSP camera URL (empty for local device).
         analysis_interval_seconds: Interval between analyses in periodic mode.
         capture_width: Requested capture width in pixels.
         capture_height: Requested capture height in pixels.
@@ -26,6 +27,7 @@ class Settings:
     openai_api_key: str = ""
     gemini_api_key: str = ""
     camera_device_index: int = 0
+    camera_url: str = ""
     analysis_interval_seconds: int = 30
     capture_width: int = 640
     capture_height: int = 480
@@ -41,6 +43,7 @@ class Settings:
             OPENAI_API_KEY: OpenAI API key (required when provider is openai).
             GEMINI_API_KEY: Google Gemini API key (required when provider is gemini).
             CAMERA_DEVICE_INDEX (optional, default 0): Camera device index.
+            CAMERA_URL (optional): RTSP camera URL.
             ANALYSIS_INTERVAL_SECONDS (optional, default 30): Analysis interval.
             CAPTURE_WIDTH (optional, default 640): Capture width.
             CAPTURE_HEIGHT (optional, default 480): Capture height.
@@ -72,6 +75,7 @@ class Settings:
             openai_api_key=openai_key,
             gemini_api_key=gemini_key,
             camera_device_index=int(os.environ.get("CAMERA_DEVICE_INDEX", "0")),
+            camera_url=os.environ.get("CAMERA_URL", ""),
             analysis_interval_seconds=int(
                 os.environ.get("ANALYSIS_INTERVAL_SECONDS", "30")
             ),
