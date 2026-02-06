@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mimamori - 新生児モニタリング</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; color: #333; }
+    .header { background: #2c3e50; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 1.2em; }
+    .header .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #2ecc71; display: inline-block; margin-right: 6px; }
+    .alert-banner { background: #e74c3c; color: #fff; padding: 10px 20px; display: none; font-weight: bold; }
+    .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; }
+    .card h2 { font-size: 1em; margin-bottom: 12px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+    .video-container { grid-column: 1 / 2; }
+    .video-container img { width: 100%; border-radius: 4px; background: #000; }
+    .result-container { grid-column: 2 / 3; }
+    .result-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .result-label { font-weight: 600; color: #555; }
+    .anomaly { color: #e74c3c; font-weight: bold; }
+    .history-container { grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+    th { text-align: left; padding: 8px; background: #f8f8f8; border-bottom: 2px solid #ddd; }
+    td { padding: 8px; border-bottom: 1px solid #eee; }
+    .settings-container { grid-column: 1 / -1; }
+    .form-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+    .form-row label { min-width: 140px; font-weight: 600; }
+    .form-row input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; max-width: 300px; }
+    .btn { padding: 6px 16px; background: #3498db; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    .btn:hover { background: #2980b9; }
+    .no-data { color: #999; font-style: italic; padding: 20px 0; text-align: center; }
+    @media (max-width: 768px) { .main { grid-template-columns: 1fr; } .video-container, .result-container { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><span class="status-dot" id="statusDot"></span>mimamori 新生児モニタリング</h1>
+    <span id="lastUpdate">--</span>
+  </div>
+  <div class="alert-banner" id="alertBanner"></div>
+  <div class="main">
+    <div class="card video-container">
+      <h2>ライブ映像</h2>
+      <img src="/stream" alt="Live Stream" id="liveStream">
+    </div>
+    <div class="card result-container">
+      <h2>最新解析結果</h2>
+      <div id="resultArea">
+        <div class="no-data">解析結果を待っています...</div>
+      </div>
+    </div>
+    <div class="card history-container">
+      <h2>解析履歴</h2>
+      <table>
+        <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>要約</th><th>異常</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="5" class="no-data">履歴なし</td></tr></tbody>
+      </table>
+    </div>
+    <div class="card settings-container">
+      <h2>設定</h2>
+      <div class="form-row">
+        <label>解析間隔（秒）</label>
+        <input type="number" id="intervalInput" min="5" max="300" value="30">
+        <button class="btn" onclick="updateSettings()">更新</button>
+      </div>
+      <div class="form-row">
+        <label>カメラ URL</label>
+        <input type="text" id="cameraUrlInput" placeholder="rtsp://...">
+        <button class="btn" onclick="updateSettings()">更新</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    function formatTime(ts) {
+      return new Date(ts).toLocaleTimeString('ja-JP');
+    }
+    async function fetchStatus() {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        const area = document.getElementById('resultArea');
+        const banner = document.getElementById('alertBanner');
+        const dot = document.getElementById('statusDot');
+        if (!d.has_result) { dot.style.background = '#f39c12'; return; }
+        dot.style.background = '#2ecc71';
+        document.getElementById('lastUpdate').textContent = formatTime(d.timestamp);
+        let html = '';
+        html += '<div class="result-item"><span class="result-label">姿勢</span><span>' + d.posture + '</span></div>';
+        html += '<div class="result-item"><span class="result-label">睡眠状態</span><span>' + d.sleep_state + '</span></div>';
+        html += '<div class="result-item"><span class="result-label">要約</span><span>' + d.summary + '</span></div>';
+        html += '<div class="result-item"><span class="result-label">信頼度</span><span>' + d.confidence + '</span></div>';
+        if (d.anomalies.length > 0) {
+          html += '<div class="result-item"><span class="result-label">異常</span><span class="anomaly">' + d.anomalies.join(', ') + '</span></div>';
+          banner.textContent = '⚠ 異常検知: ' + d.anomalies.join(', ');
+          banner.style.display = 'block';
+        } else {
+          html += '<div class="result-item"><span class="result-label">異常</span><span>なし</span></div>';
+          banner.style.display = 'none';
+        }
+        area.innerHTML = html;
+      } catch (e) {
+        document.getElementById('statusDot').style.background = '#e74c3c';
+      }
+    }
+    async function fetchHistory() {
+      try {
+        const r = await fetch('/api/history');
+        const d = await r.json();
+        const body = document.getElementById('historyBody');
+        if (d.items.length === 0) { body.innerHTML = '<tr><td colspan="5" class="no-data">履歴なし</td></tr>'; return; }
+        body.innerHTML = d.items.map(function(item) {
+          const anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.join(', ') + '</span>' : 'なし';
+          return '<tr><td>' + formatTime(item.timestamp) + '</td><td>' + item.posture + '</td><td>' + item.sleep_state + '</td><td>' + item.summary + '</td><td>' + anomaly + '</td></tr>';
+        }).join('');
+      } catch (e) { /* ignore */ }
+    }
+    async function updateSettings() {
+      const interval = parseInt(document.getElementById('intervalInput').value);
+      const url = document.getElementById('cameraUrlInput').value;
+      const body = {};
+      if (!isNaN(interval) && interval >= 5) body.analysis_interval_seconds = interval;
+      if (url) body.camera_url = url;
+      try {
+        const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        document.getElementById('intervalInput').value = d.analysis_interval_seconds;
+        document.getElementById('cameraUrlInput').value = d.camera_url;
+      } catch (e) { /* ignore */ }
+    }
+    setInterval(fetchStatus, 5000);
+    setInterval(fetchHistory, 10000);
+    fetchStatus();
+    fetchHistory();
+  </script>
+</body>
+</html>
