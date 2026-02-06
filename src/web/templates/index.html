@@ -5,43 +5,122 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>mimamori - 新生児モニタリング</title>
   <style>
+    :root {
+      --bg: #f5f5f5;
+      --card-bg: #fff;
+      --primary: #2c3e50;
+      --accent: #3498db;
+      --accent-hover: #2980b9;
+      --danger: #e74c3c;
+      --danger-hover: #c0392b;
+      --success: #27ae60;
+      --success-hover: #219a52;
+      --text: #333;
+      --text-light: #555;
+      --text-muted: #999;
+      --border: #eee;
+      --border-dark: #ddd;
+      --tag-bg: #eaf2f8;
+      --radius: 8px;
+      --tap-size: 44px;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; color: #333; }
-    .header { background: #2c3e50; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .header h1 { font-size: 1.2em; }
-    .header .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #2ecc71; display: inline-block; margin-right: 6px; }
-    .alert-banner { background: #e74c3c; color: #fff; padding: 10px 20px; display: none; font-weight: bold; }
-    .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
-    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; }
-    .card h2 { font-size: 1em; margin-bottom: 12px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-    .video-container { grid-column: 1 / 2; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); }
+    .header {
+      background: var(--primary); color: #fff; padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header h1 { font-size: 1.1em; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #2ecc71; display: inline-block; margin-right: 6px; }
+    .alert-banner { background: var(--danger); color: #fff; padding: 10px 16px; display: none; font-weight: bold; }
+    .main { display: flex; flex-direction: column; gap: 12px; padding: 12px; max-width: 1200px; margin: 0 auto; }
+    .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px; }
+    .card h2 { font-size: 1em; margin-bottom: 12px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
     .video-container img { width: 100%; border-radius: 4px; background: #000; }
-    .result-container { grid-column: 2 / 3; }
     .result-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
-    .result-label { font-weight: 600; color: #555; }
-    .anomaly { color: #e74c3c; font-weight: bold; }
-    .action-tag { display: inline-block; background: #eaf2f8; color: #2c3e50; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
-    .history-container { grid-column: 1 / -1; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-    th { text-align: left; padding: 8px; background: #f8f8f8; border-bottom: 2px solid #ddd; }
-    td { padding: 8px; border-bottom: 1px solid #eee; }
-    .settings-container { grid-column: 1 / -1; }
-    .form-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
-    .form-row label { min-width: 140px; font-weight: 600; }
-    .form-row input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; max-width: 300px; }
-    .btn { padding: 6px 16px; background: #3498db; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-    .btn:hover { background: #2980b9; }
-    .btn-danger { background: #e74c3c; }
-    .btn-danger:hover { background: #c0392b; }
-    .btn-success { background: #27ae60; }
-    .btn-success:hover { background: #219a52; }
-    .no-data { color: #999; font-style: italic; padding: 20px 0; text-align: center; }
-    @media (max-width: 768px) { .main { grid-template-columns: 1fr; } .video-container, .result-container { grid-column: 1 / -1; } }
+    .result-label { font-weight: 600; color: var(--text-light); white-space: nowrap; margin-right: 12px; }
+    .result-value { text-align: right; flex: 1; }
+    .anomaly { color: var(--danger); font-weight: bold; }
+    .action-tag { display: inline-block; background: var(--tag-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+    /* Buttons */
+    .btn {
+      min-height: var(--tap-size); min-width: var(--tap-size);
+      padding: 10px 16px; background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      font-size: 0.9em; font-weight: 600; touch-action: manipulation;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:active { transform: scale(0.97); }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: var(--success-hover); }
+    .btn-sm { min-height: 36px; padding: 6px 12px; font-size: 0.85em; }
+    /* Settings */
+    details { margin-bottom: 0; }
+    details summary {
+      font-size: 1em; font-weight: 600; color: var(--primary);
+      cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border);
+      list-style: none; display: flex; justify-content: space-between; align-items: center;
+    }
+    details summary::after { content: '\25B6'; font-size: 0.7em; transition: transform 0.2s; }
+    details[open] summary::after { transform: rotate(90deg); }
+    details summary::-webkit-details-marker { display: none; }
+    .settings-section { padding-top: 12px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.9em; color: var(--text-light); }
+    .form-group input, .form-group select {
+      width: 100%; padding: 10px; border: 1px solid var(--border-dark);
+      border-radius: var(--radius); font-size: 1em; min-height: var(--tap-size);
+    }
+    .form-row-inline { display: flex; gap: 8px; align-items: flex-end; }
+    .form-row-inline .form-group { flex: 1; margin-bottom: 0; }
+    .form-row-inline .btn { align-self: flex-end; }
+    .form-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    /* History - card (mobile) */
+    .history-cards { display: flex; flex-direction: column; gap: 8px; }
+    .history-card {
+      background: var(--bg); border-radius: var(--radius); padding: 12px;
+      border-left: 3px solid var(--accent);
+    }
+    .history-card.has-anomaly { border-left-color: var(--danger); }
+    .history-card-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85em; color: var(--text-muted); }
+    .history-card-body { font-size: 0.9em; }
+    .history-card-row { display: flex; justify-content: space-between; padding: 3px 0; }
+    .history-card-label { font-weight: 600; color: var(--text-light); }
+    /* History - table (desktop) */
+    .history-table { display: none; }
+    .history-table table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+    .history-table th { text-align: left; padding: 8px; background: #f8f8f8; border-bottom: 2px solid var(--border-dark); }
+    .history-table td { padding: 8px; border-bottom: 1px solid var(--border); }
+    .no-data { color: var(--text-muted); font-style: italic; padding: 20px 0; text-align: center; }
+    /* Toast */
+    .toast-container { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    .toast {
+      background: var(--primary); color: #fff; padding: 10px 20px;
+      border-radius: var(--radius); font-size: 0.9em; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      animation: toastIn 0.3s ease;
+    }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    /* Desktop layout */
+    @media (min-width: 768px) {
+      .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
+      .video-container { grid-column: 1 / 2; }
+      .result-container { grid-column: 2 / 3; }
+      .history-container { grid-column: 1 / -1; }
+      .settings-container { grid-column: 1 / -1; }
+      .history-cards { display: none; }
+      .history-table { display: block; }
+      .form-row-inline .form-group { max-width: 300px; }
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1><span class="status-dot" id="statusDot"></span>mimamori 新生児モニタリング</h1>
+    <h1><span class="status-dot" id="statusDot"></span>mimamori</h1>
     <span id="lastUpdate">--</span>
   </div>
   <div class="alert-banner" id="alertBanner"></div>
@@ -49,6 +128,9 @@
     <div class="card video-container">
       <h2>ライブ映像</h2>
       <img src="/stream" alt="Live Stream" id="liveStream">
+      <div class="form-actions" style="margin-top:8px;">
+        <button class="btn btn-danger btn-sm" id="streamToggleBtn" onclick="toggleStream()">停止</button>
+      </div>
     </div>
     <div class="card result-container">
       <h2>最新解析結果</h2>
@@ -58,64 +140,139 @@
     </div>
     <div class="card history-container">
       <h2>解析履歴</h2>
-      <table>
-        <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>動作・状態</th><th>要約</th><th>異常</th></tr></thead>
-        <tbody id="historyBody"><tr><td colspan="6" class="no-data">履歴なし</td></tr></tbody>
-      </table>
+      <div class="history-cards" id="historyCards">
+        <div class="no-data">履歴なし</div>
+      </div>
+      <div class="history-table">
+        <table>
+          <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>動作・状態</th><th>要約</th><th>異常</th></tr></thead>
+          <tbody id="historyBody"><tr><td colspan="6" class="no-data">履歴なし</td></tr></tbody>
+        </table>
+      </div>
     </div>
     <div class="card settings-container">
-      <h2>設定</h2>
-      <div class="form-row">
-        <label>解析間隔（秒）</label>
-        <input type="number" id="intervalInput" min="5" max="300" value="30">
-        <button class="btn" onclick="updateSettings()">更新</button>
-      </div>
-      <div class="form-row">
-        <label>カメラ URL</label>
-        <input type="text" id="cameraUrlInput" placeholder="rtsp://...">
-        <button class="btn" onclick="swapCameraUrl()">切り替え</button>
-      </div>
-      <div class="form-row">
-        <label>デバイスインデックス</label>
-        <input type="number" id="deviceIndexInput" min="0" max="10" value="0">
-        <button class="btn" onclick="swapCameraDevice()">切り替え</button>
-      </div>
-      <div class="form-row">
-        <label>ストリーム制御</label>
-        <button class="btn btn-danger" id="streamToggleBtn" onclick="toggleStream()">停止</button>
-      </div>
+      <details id="settingsAnalysis">
+        <summary>解析設定</summary>
+        <div class="settings-section">
+          <div class="form-group">
+            <label>解析間隔（秒）</label>
+            <input type="number" id="intervalInput" min="1" max="300" value="5">
+          </div>
+          <div class="form-group">
+            <label>LLM プロバイダ</label>
+            <select id="providerSelect">
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>モデル名</label>
+            <input type="text" id="modelInput" value="">
+          </div>
+          <div class="form-actions">
+            <button class="btn" onclick="saveAnalysisSettings()">保存</button>
+          </div>
+        </div>
+      </details>
+      <details id="settingsCamera">
+        <summary>カメラ設定</summary>
+        <div class="settings-section">
+          <div class="form-group">
+            <label>カメラ URL（RTSP）</label>
+            <div class="form-row-inline">
+              <div class="form-group">
+                <input type="text" id="cameraUrlInput" placeholder="rtsp://...">
+              </div>
+              <button class="btn btn-sm" onclick="swapCameraUrl()">切替</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>デバイスインデックス</label>
+            <div class="form-row-inline">
+              <div class="form-group">
+                <input type="number" id="deviceIndexInput" min="0" max="10" value="0">
+              </div>
+              <button class="btn btn-sm" onclick="swapCameraDevice()">切替</button>
+            </div>
+          </div>
+          <div class="form-row-inline" style="margin-top:12px;">
+            <div class="form-group">
+              <label>幅</label>
+              <input type="number" id="captureWidthInput" min="160" max="3840" value="640">
+            </div>
+            <div class="form-group">
+              <label>高さ</label>
+              <input type="number" id="captureHeightInput" min="120" max="2160" value="480">
+            </div>
+            <button class="btn btn-sm" onclick="saveCaptureSize()">保存</button>
+          </div>
+        </div>
+      </details>
     </div>
   </div>
+  <div class="toast-container" id="toastContainer"></div>
   <script>
     function formatTime(ts) {
       return new Date(ts).toLocaleTimeString('ja-JP');
     }
+    function showToast(msg, type) {
+      type = type || 'success';
+      var container = document.getElementById('toastContainer');
+      var el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(function() { el.remove(); }, 3000);
+    }
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+    async function loadSettings() {
+      try {
+        var r = await fetch('/api/settings');
+        var d = await r.json();
+        document.getElementById('intervalInput').value = d.analysis_interval_seconds;
+        document.getElementById('cameraUrlInput').value = d.camera_url || '';
+        document.getElementById('deviceIndexInput').value = d.camera_device_index;
+        document.getElementById('captureWidthInput').value = d.capture_width;
+        document.getElementById('captureHeightInput').value = d.capture_height;
+        document.getElementById('modelInput').value = d.llm_model;
+        var sel = document.getElementById('providerSelect');
+        sel.value = d.llm_provider;
+        // Disable unavailable providers
+        var opts = sel.options;
+        for (var i = 0; i < opts.length; i++) {
+          if (opts[i].value === 'openai') opts[i].disabled = !d.openai_available;
+          if (opts[i].value === 'gemini') opts[i].disabled = !d.gemini_available;
+        }
+      } catch (e) { /* ignore */ }
+    }
     async function fetchStatus() {
       try {
-        const r = await fetch('/api/status');
-        const d = await r.json();
-        const area = document.getElementById('resultArea');
-        const banner = document.getElementById('alertBanner');
-        const dot = document.getElementById('statusDot');
+        var r = await fetch('/api/status');
+        var d = await r.json();
+        var area = document.getElementById('resultArea');
+        var banner = document.getElementById('alertBanner');
+        var dot = document.getElementById('statusDot');
         if (!d.has_result) { dot.style.background = '#f39c12'; return; }
         dot.style.background = '#2ecc71';
         document.getElementById('lastUpdate').textContent = formatTime(d.timestamp);
-        let html = '';
-        html += '<div class="result-item"><span class="result-label">姿勢</span><span>' + d.posture + '</span></div>';
-        html += '<div class="result-item"><span class="result-label">睡眠状態</span><span>' + d.sleep_state + '</span></div>';
-        html += '<div class="result-item"><span class="result-label">要約</span><span>' + d.summary + '</span></div>';
-        html += '<div class="result-item"><span class="result-label">信頼度</span><span>' + d.confidence + '</span></div>';
+        var html = '';
+        html += '<div class="result-item"><span class="result-label">姿勢</span><span class="result-value">' + escapeHtml(d.posture) + '</span></div>';
+        html += '<div class="result-item"><span class="result-label">睡眠状態</span><span class="result-value">' + escapeHtml(d.sleep_state) + '</span></div>';
+        html += '<div class="result-item"><span class="result-label">要約</span><span class="result-value">' + escapeHtml(d.summary) + '</span></div>';
+        html += '<div class="result-item"><span class="result-label">信頼度</span><span class="result-value">' + escapeHtml(d.confidence) + '</span></div>';
         if (d.actions && d.actions.length > 0) {
-          html += '<div class="result-item"><span class="result-label">動作・状態</span><span>' + d.actions.map(function(a) { return '<span class="action-tag">' + a + '</span>'; }).join('') + '</span></div>';
-        } else {
-          html += '<div class="result-item"><span class="result-label">動作・状態</span><span>特になし</span></div>';
+          html += '<div class="result-item"><span class="result-label">動作</span><span class="result-value">' + d.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') + '</span></div>';
         }
         if (d.anomalies.length > 0) {
-          html += '<div class="result-item"><span class="result-label">異常</span><span class="anomaly">' + d.anomalies.join(', ') + '</span></div>';
-          banner.textContent = '⚠ 異常検知: ' + d.anomalies.join(', ');
+          html += '<div class="result-item"><span class="result-label">異常</span><span class="result-value anomaly">' + d.anomalies.map(escapeHtml).join(', ') + '</span></div>';
+          banner.textContent = '\u26A0 異常検知: ' + d.anomalies.join(', ');
           banner.style.display = 'block';
         } else {
-          html += '<div class="result-item"><span class="result-label">異常</span><span>なし</span></div>';
+          html += '<div class="result-item"><span class="result-label">異常</span><span class="result-value">なし</span></div>';
           banner.style.display = 'none';
         }
         area.innerHTML = html;
@@ -125,68 +282,114 @@
     }
     async function fetchHistory() {
       try {
-        const r = await fetch('/api/history');
-        const d = await r.json();
-        const body = document.getElementById('historyBody');
-        if (d.items.length === 0) { body.innerHTML = '<tr><td colspan="6" class="no-data">履歴なし</td></tr>'; return; }
-        body.innerHTML = d.items.map(function(item) {
-          const anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.join(', ') + '</span>' : 'なし';
-          const actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + a + '</span>'; }).join('') : '-';
-          return '<tr><td>' + formatTime(item.timestamp) + '</td><td>' + item.posture + '</td><td>' + item.sleep_state + '</td><td>' + actions + '</td><td>' + item.summary + '</td><td>' + anomaly + '</td></tr>';
+        var r = await fetch('/api/history');
+        var d = await r.json();
+        // Cards (mobile)
+        var cardsEl = document.getElementById('historyCards');
+        // Table (desktop)
+        var bodyEl = document.getElementById('historyBody');
+        if (d.items.length === 0) {
+          cardsEl.innerHTML = '<div class="no-data">履歴なし</div>';
+          bodyEl.innerHTML = '<tr><td colspan="6" class="no-data">履歴なし</td></tr>';
+          return;
+        }
+        // Cards
+        cardsEl.innerHTML = d.items.map(function(item) {
+          var cls = item.anomalies.length > 0 ? 'history-card has-anomaly' : 'history-card';
+          var actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') : '-';
+          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : 'なし';
+          return '<div class="' + cls + '">' +
+            '<div class="history-card-header"><span>' + formatTime(item.timestamp) + '</span><span>' + escapeHtml(item.confidence) + '</span></div>' +
+            '<div class="history-card-body">' +
+            '<div class="history-card-row"><span class="history-card-label">姿勢</span><span>' + escapeHtml(item.posture) + '</span></div>' +
+            '<div class="history-card-row"><span class="history-card-label">睡眠</span><span>' + escapeHtml(item.sleep_state) + '</span></div>' +
+            '<div class="history-card-row"><span class="history-card-label">動作</span><span>' + actions + '</span></div>' +
+            '<div class="history-card-row"><span class="history-card-label">要約</span><span>' + escapeHtml(item.summary) + '</span></div>' +
+            '<div class="history-card-row"><span class="history-card-label">異常</span><span>' + anomaly + '</span></div>' +
+            '</div></div>';
+        }).join('');
+        // Table
+        bodyEl.innerHTML = d.items.map(function(item) {
+          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : 'なし';
+          var actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') : '-';
+          return '<tr><td>' + formatTime(item.timestamp) + '</td><td>' + escapeHtml(item.posture) + '</td><td>' + escapeHtml(item.sleep_state) + '</td><td>' + actions + '</td><td>' + escapeHtml(item.summary) + '</td><td>' + anomaly + '</td></tr>';
         }).join('');
       } catch (e) { /* ignore */ }
     }
-    async function updateSettings() {
-      const interval = parseInt(document.getElementById('intervalInput').value);
-      const body = {};
-      if (!isNaN(interval) && interval >= 5) body.analysis_interval_seconds = interval;
+    async function saveAnalysisSettings() {
+      var body = {};
+      var interval = parseInt(document.getElementById('intervalInput').value);
+      if (!isNaN(interval) && interval >= 1) body.analysis_interval_seconds = interval;
+      body.llm_provider = document.getElementById('providerSelect').value;
+      body.llm_model = document.getElementById('modelInput').value;
       try {
-        const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const d = await r.json();
+        var r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        var d = await r.json();
         document.getElementById('intervalInput').value = d.analysis_interval_seconds;
-      } catch (e) { /* ignore */ }
+        document.getElementById('providerSelect').value = d.llm_provider;
+        document.getElementById('modelInput').value = d.llm_model;
+        showToast('解析設定を更新しました');
+      } catch (e) { showToast('設定の更新に失敗しました', 'error'); }
     }
-    let streamRunning = true;
+    async function saveCaptureSize() {
+      var w = parseInt(document.getElementById('captureWidthInput').value);
+      var h = parseInt(document.getElementById('captureHeightInput').value);
+      var body = {};
+      if (!isNaN(w) && w > 0) body.capture_width = w;
+      if (!isNaN(h) && h > 0) body.capture_height = h;
+      try {
+        var r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        var d = await r.json();
+        document.getElementById('captureWidthInput').value = d.capture_width;
+        document.getElementById('captureHeightInput').value = d.capture_height;
+        showToast('解像度設定を更新しました');
+      } catch (e) { showToast('設定の更新に失敗しました', 'error'); }
+    }
+    var streamRunning = true;
     async function swapCameraUrl() {
-      const url = document.getElementById('cameraUrlInput').value;
+      var url = document.getElementById('cameraUrlInput').value;
       if (!url) return;
       try {
-        const r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) });
-        const d = await r.json();
-        if (!d.ok) alert(d.message);
-      } catch (e) { /* ignore */ }
+        var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) });
+        var d = await r.json();
+        if (d.ok) { showToast('カメラを切り替えました'); } else { showToast(d.message, 'error'); }
+      } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function swapCameraDevice() {
-      const idx = parseInt(document.getElementById('deviceIndexInput').value);
+      var idx = parseInt(document.getElementById('deviceIndexInput').value);
       if (isNaN(idx) || idx < 0) return;
       try {
-        const r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) });
-        const d = await r.json();
-        if (!d.ok) alert(d.message);
-      } catch (e) { /* ignore */ }
+        var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) });
+        var d = await r.json();
+        if (d.ok) { showToast('カメラを切り替えました'); } else { showToast(d.message, 'error'); }
+      } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function toggleStream() {
-      const endpoint = streamRunning ? '/api/stream/stop' : '/api/stream/start';
+      var endpoint = streamRunning ? '/api/stream/stop' : '/api/stream/start';
       try {
-        const r = await fetch(endpoint, { method: 'POST' });
-        const d = await r.json();
+        var r = await fetch(endpoint, { method: 'POST' });
+        var d = await r.json();
         if (d.ok) {
           streamRunning = d.running;
-          const btn = document.getElementById('streamToggleBtn');
+          var btn = document.getElementById('streamToggleBtn');
           if (streamRunning) {
             btn.textContent = '停止';
-            btn.className = 'btn btn-danger';
+            btn.className = 'btn btn-danger btn-sm';
+            showToast('ストリームを再開しました');
           } else {
             btn.textContent = '再開';
-            btn.className = 'btn btn-success';
+            btn.className = 'btn btn-success btn-sm';
+            showToast('ストリームを停止しました');
           }
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) { showToast('ストリーム制御に失敗しました', 'error'); }
     }
-    setInterval(fetchStatus, 5000);
-    setInterval(fetchHistory, 10000);
+    // Initial load
+    loadSettings();
     fetchStatus();
     fetchHistory();
+    setInterval(fetchStatus, 5000);
+    setInterval(fetchHistory, 10000);
   </script>
 </body>
 </html>
