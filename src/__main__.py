@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from src.analyzer import AnalysisResult, analyze_frame, analyze_frame_gemini
 from src.capture import HTTPCamera, OpenCVCamera, RTSPCamera, encode_frame_to_base64
 from src.config import RuntimeConfig, Settings
-from src.core import AnalyzerWorker, FrameGrabber, MonitoringState
+from src.core import AnalyzerWorker, FrameGrabber, MonitoringState, SleepTracker
 from src.recorder import VideoRecorder
 
 if TYPE_CHECKING:
@@ -129,6 +129,7 @@ def run_web(settings: Settings) -> int:
         analyze_fn=_runtime_call_analyzer,
     )
     recorder = VideoRecorder(state=state)
+    sleep_tracker = SleepTracker(state=state)
 
     def swap_camera_fn(url: str, device_index: int) -> None:
         """Create a new camera and swap the grabber to use it."""
@@ -147,6 +148,7 @@ def run_web(settings: Settings) -> int:
 
     grabber.start()
     worker.start()
+    sleep_tracker.start()
 
     app = create_app(
         state=state,
@@ -156,12 +158,14 @@ def run_web(settings: Settings) -> int:
         settings=settings,
         worker=worker,
         recorder=recorder,
+        sleep_tracker=sleep_tracker,
     )
 
     try:
         logger.info("Starting web dashboard on http://localhost:8000")
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     finally:
+        sleep_tracker.stop()
         if recorder.recording:
             recorder.stop()
         worker.stop()
