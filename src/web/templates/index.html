@@ -251,9 +251,9 @@
         <summary>カメラ設定</summary>
         <div class="settings-section">
           <div class="form-group">
-            <label>カメラ URL（RTSP）</label>
+            <label>カメラ URL</label>
             <div class="form-row-inline">
-              <div class="form-group"><input type="text" id="cameraUrlInput" placeholder="rtsp://192.168.x.x:8554/video"></div>
+              <div class="form-group"><input type="text" id="cameraUrlInput" placeholder="http://192.168.x.x:8080"></div>
               <button class="btn btn-outline btn-sm" onclick="swapCameraUrl()">切替</button>
             </div>
           </div>
@@ -287,6 +287,14 @@
       var cls = c === 'high' ? 'confidence-high' : c === 'medium' ? 'confidence-medium' : 'confidence-low';
       return '<span class="confidence-badge ' + cls + '">' + escapeHtml(c) + '</span>';
     }
+    function updateStreamUrl(cameraUrl) {
+      var img = document.getElementById('liveStream');
+      if (cameraUrl && (cameraUrl.startsWith('http://') || cameraUrl.startsWith('https://'))) {
+        img.src = cameraUrl.replace(/\/+$/, '') + '/video';
+      } else {
+        img.src = '/stream';
+      }
+    }
     async function loadSettings() {
       try {
         var r = await fetch('/api/settings'), d = await r.json();
@@ -302,6 +310,7 @@
           if (sel.options[i].value === 'openai') sel.options[i].disabled = !d.openai_available;
           if (sel.options[i].value === 'gemini') sel.options[i].disabled = !d.gemini_available;
         }
+        updateStreamUrl(d.camera_url);
       } catch (e) { /* ignore */ }
     }
     async function fetchStatus() {
@@ -382,12 +391,12 @@
     async function swapCameraUrl() {
       var url = document.getElementById('cameraUrlInput').value;
       if (!url) return;
-      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) }), d = await r.json(); if (d.ok) showToast('カメラを切り替えました'); else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
+      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) }), d = await r.json(); if (d.ok) { updateStreamUrl(d.camera_url); showToast('カメラを切り替えました'); } else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function swapCameraDevice() {
       var idx = parseInt(document.getElementById('deviceIndexInput').value);
       if (isNaN(idx) || idx < 0) return;
-      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) }), d = await r.json(); if (d.ok) showToast('カメラを切り替えました'); else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
+      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) }), d = await r.json(); if (d.ok) { updateStreamUrl(''); showToast('カメラを切り替えました'); } else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function toggleStream() {
       try { var r = await fetch(streamRunning ? '/api/stream/stop' : '/api/stream/start', { method: 'POST' }), d = await r.json();
