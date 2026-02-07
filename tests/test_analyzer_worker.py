@@ -189,3 +189,79 @@ class TestAnalyzerWorker:
 
         # First call analyzes, subsequent ones skip (same frame)
         assert call_count == 1
+
+    def test_forces_analysis_after_max_skip(self) -> None:
+        """AnalyzerWorker forces analysis after max_skip_seconds elapsed."""
+        call_count = 0
+
+        def counting_analyze(_settings: Settings, _base64_image: str) -> AnalysisResult:
+            nonlocal call_count
+            call_count += 1
+            return _fake_analyze(_settings, _base64_image)
+
+        state = MonitoringState()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame)
+
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(
+            analysis_interval_seconds=1,
+            max_skip_seconds=2,
+        )
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=counting_analyze,
+        )
+        worker.start()
+        # Wait enough for initial analysis + forced re-analysis after 2s
+        time.sleep(3.5)
+        worker.stop()
+
+        # First call at T=0, then forced re-analysis after 2s
+        assert call_count >= 2
+
+    def test_no_forced_analysis_when_disabled(self) -> None:
+        """AnalyzerWorker does not force analysis when max_skip_seconds=0."""
+        call_count = 0
+
+        def counting_analyze(_settings: Settings, _base64_image: str) -> AnalysisResult:
+            nonlocal call_count
+            call_count += 1
+            return _fake_analyze(_settings, _base64_image)
+
+        state = MonitoringState()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame)
+
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(
+            analysis_interval_seconds=1,
+            max_skip_seconds=0,
+        )
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=counting_analyze,
+        )
+        worker.start()
+        time.sleep(2.5)
+        worker.stop()
+
+        # Only the initial analysis, no forced re-analysis
+        assert call_count == 1
+
+    def test_max_skip_seconds_config(self) -> None:
+        """RuntimeConfig max_skip_seconds getter/setter works correctly."""
+        config = RuntimeConfig(max_skip_seconds=600)
+        assert config.max_skip_seconds == 600
+
+        config.max_skip_seconds = 120
+        assert config.max_skip_seconds == 120
+
+        config.max_skip_seconds = 0
+        assert config.max_skip_seconds == 0
