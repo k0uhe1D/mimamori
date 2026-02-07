@@ -14,17 +14,37 @@ class TestSettings:
     """Tests for Settings dataclass."""
 
     def test_from_env_with_openai_key(self) -> None:
-        """Settings.from_env() works with OPENAI_API_KEY set."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key-123"}):
+        """Settings.from_env() works with LLM_PROVIDER=openai."""
+        env = {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "test-key-123"}
+        with patch.dict(os.environ, env):
             settings = Settings.from_env()
         assert settings.openai_api_key == "test-key-123"
         assert settings.llm_provider == "openai"
         assert settings.camera_device_index == 0
         assert settings.analysis_interval_seconds == 5
 
+    def test_from_env_missing_provider_raises(self) -> None:
+        """Settings.from_env() raises ValueError without LLM_PROVIDER."""
+        env = {k: v for k, v in os.environ.items() if k != "LLM_PROVIDER"}
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="LLM_PROVIDER"),
+        ):
+            Settings.from_env()
+
+    def test_from_env_unsupported_provider_raises(self) -> None:
+        """Settings.from_env() raises ValueError for unsupported provider."""
+        env = {"LLM_PROVIDER": "claude"}
+        with (
+            patch.dict(os.environ, env),
+            pytest.raises(ValueError, match="not supported"),
+        ):
+            Settings.from_env()
+
     def test_from_env_missing_openai_key_raises(self) -> None:
         """Settings.from_env() raises ValueError without OPENAI_API_KEY."""
         env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+        env["LLM_PROVIDER"] = "openai"
         with (
             patch.dict(os.environ, env, clear=True),
             pytest.raises(ValueError, match="OPENAI_API_KEY"),
@@ -59,6 +79,7 @@ class TestSettings:
     def test_from_env_custom_values(self) -> None:
         """Settings.from_env() reads custom environment values."""
         env = {
+            "LLM_PROVIDER": "openai",
             "OPENAI_API_KEY": "key",
             "CAMERA_DEVICE_INDEX": "2",
             "ANALYSIS_INTERVAL_SECONDS": "60",
@@ -78,7 +99,8 @@ class TestSettings:
 
     def test_camera_url_defaults_to_empty(self) -> None:
         """Settings.camera_url defaults to empty string."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "key"}):
+        env = {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "key"}
+        with patch.dict(os.environ, env):
             settings = Settings.from_env()
         assert settings.camera_url == ""
 
