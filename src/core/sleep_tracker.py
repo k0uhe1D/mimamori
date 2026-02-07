@@ -21,6 +21,53 @@ _DEFAULT_CHECK_INTERVAL = 10.0
 _DEFAULT_SNAPSHOT_INTERVAL = 300.0
 _DEFAULT_SNAPSHOT_DIR = "sleep_snapshots"
 _SLEEP_STATE_VALUE = "睡眠中"
+_TIMELAPSE_MAX_WIDTH = 480
+_TIMELAPSE_FRAME_DURATION_MS = 500
+
+
+def generate_timelapse_gif(
+    snapshot_paths: list[str],
+    output_path: str,
+    max_width: int = _TIMELAPSE_MAX_WIDTH,
+) -> str | None:
+    """Generate a timelapse GIF from snapshot JPEG files.
+
+    Args:
+        snapshot_paths: Ordered list of JPEG file paths.
+        output_path: Path to write the output GIF.
+        max_width: Maximum width for resizing frames.
+
+    Returns:
+        The output_path on success, or None if fewer than 2 valid images.
+    """
+    from PIL import Image
+
+    frames: list[Image.Image] = []
+    for path in snapshot_paths:
+        try:
+            img = Image.open(path)
+        except (FileNotFoundError, OSError):
+            logger.debug("Skipping missing/corrupt snapshot: %s", path)
+            continue
+        w, h = img.size
+        frame: Image.Image = img
+        if w > max_width:
+            ratio = max_width / w
+            frame = img.resize((max_width, int(h * ratio)))
+        frames.append(frame.convert("RGB"))
+
+    if len(frames) < 2:
+        return None
+
+    frames[0].save(
+        output_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=_TIMELAPSE_FRAME_DURATION_MS,
+        loop=0,
+    )
+    logger.info("Timelapse GIF created: %s (%d frames)", output_path, len(frames))
+    return output_path
 
 
 class SleepTracker:
@@ -170,6 +217,30 @@ class SleepTracker:
             "Sleep session ended: %.0f seconds",
             session.duration_seconds,
         )
+        if session.snapshot_paths:
+            t = threading.Thread(
+                target=self._generate_timelapse,
+                args=(session,),
+                name="timelapse-gen",
+                daemon=True,
+            )
+            t.start()
+
+    def _generate_timelapse(self, session: SleepSession) -> None:
+        """Generate timelapse GIF for a completed session.
+
+        Args:
+            session: The sleep session to generate a timelapse for.
+        """
+        gif_name = session.start_time.strftime("%Y%m%d_%H%M%S") + "_timelapse.gif"
+        output_path = str(self._snapshot_dir / gif_name)
+        try:
+            result = generate_timelapse_gif(session.snapshot_paths, output_path)
+            if result is not None:
+                with self._lock:
+                    session.timelapse_path = result
+        except Exception:
+            logger.exception("Failed to generate timelapse GIF")
 
     def _maybe_capture_snapshot(self) -> None:
         """Capture a snapshot if enough time has passed since the last one.

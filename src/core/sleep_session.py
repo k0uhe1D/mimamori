@@ -22,6 +22,7 @@ class SleepSession:
     start_time: datetime
     end_time: datetime | None = None
     snapshot_paths: list[str] = field(default_factory=list)
+    timelapse_path: str | None = None
 
     @property
     def duration_seconds(self) -> float:

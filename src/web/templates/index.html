@@ -515,10 +515,11 @@
         var el = document.getElementById('sleepHistory');
         if (d.sessions.length === 0) { el.innerHTML = ''; return; }
         var h = '<div style="font-size:0.85em;color:var(--text-muted);margin-bottom:6px">合計睡眠: ' + formatDuration(d.total_sleep_seconds) + '</div>';
-        h += d.sessions.slice(0, 10).map(function(s) {
+        h += d.sessions.slice(0, 10).map(function(s, i) {
           var endStr = s.is_active ? '...' : formatTime(s.end_time);
+          var gifLink = s.timelapse_available ? ' <a class="action-tag" href="/api/sleep/sessions/' + i + '/timelapse" target="_blank">GIF</a>' : '';
           return '<div class="history-row" style="border-left-color:var(--accent)"><span class="history-row-time">' + formatTime(s.start_time) + '</span>' +
-            '<div class="history-row-body"><div class="history-row-summary">' + formatDuration(s.duration_seconds) + '</div>' +
+            '<div class="history-row-body"><div class="history-row-summary">' + formatDuration(s.duration_seconds) + gifLink + '</div>' +
             '<div class="history-row-meta">' + formatTime(s.start_time) + ' - ' + endStr + ' / ' + s.snapshot_count + '枚</div></div></div>';
         }).join('');
         el.innerHTML = h;
