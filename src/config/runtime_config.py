@@ -21,6 +21,7 @@ class RuntimeConfig:
         llm_model: str = "gpt-4o",
         capture_width: int = 640,
         capture_height: int = 480,
+        max_skip_seconds: int = 300,
     ) -> None:
         """Initialize runtime configuration.
 
@@ -32,6 +33,8 @@ class RuntimeConfig:
             llm_model: LLM model name.
             capture_width: Capture width in pixels.
             capture_height: Capture height in pixels.
+            max_skip_seconds: Max seconds to skip analysis for unchanged frames.
+                Set to 0 to disable forced analysis.
         """
         self._lock = threading.Lock()
         self._analysis_interval_seconds = analysis_interval_seconds
@@ -41,6 +44,7 @@ class RuntimeConfig:
         self._llm_model = llm_model
         self._capture_width = capture_width
         self._capture_height = capture_height
+        self._max_skip_seconds = max_skip_seconds
 
     @property
     def analysis_interval_seconds(self) -> int:
@@ -125,3 +129,15 @@ class RuntimeConfig:
         """Set the capture height in pixels."""
         with self._lock:
             self._capture_height = value
+
+    @property
+    def max_skip_seconds(self) -> int:
+        """Get the max seconds to skip analysis for unchanged frames."""
+        with self._lock:
+            return self._max_skip_seconds
+
+    @max_skip_seconds.setter
+    def max_skip_seconds(self, value: int) -> None:
+        """Set the max seconds to skip analysis for unchanged frames."""
+        with self._lock:
+            self._max_skip_seconds = value

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import TYPE_CHECKING
 
 import cv2
@@ -60,6 +61,7 @@ class AnalyzerWorker:
         self._pause_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._last_analyzed_frame: npt.NDArray[np.uint8] | None = None
+        self._last_analysis_time: float | None = None
 
     def start(self) -> None:
         """Start the analyzer worker daemon thread."""
@@ -131,6 +133,19 @@ class AnalyzerWorker:
             return False
         return True
 
+    def _should_force_analysis(self) -> bool:
+        """Check if analysis should be forced due to elapsed time.
+
+        Returns:
+            True if max_skip_seconds has elapsed since the last analysis.
+        """
+        if self._last_analysis_time is None:
+            return False
+        max_skip = self._runtime_config.max_skip_seconds
+        if max_skip <= 0:
+            return False
+        return time.monotonic() - self._last_analysis_time >= max_skip
+
     def _analyze_once(self) -> None:
         """Perform a single analysis cycle."""
         frame = self._state.get_frame()
@@ -139,12 +154,18 @@ class AnalyzerWorker:
             return
 
         if not self._is_frame_changed(frame):
-            return
+            if not self._should_force_analysis():
+                return
+            logger.info(
+                "Forcing analysis after %d seconds without change",
+                self._runtime_config.max_skip_seconds,
+            )
 
         self._last_analyzed_frame = frame.copy()
         base64_image = encode_frame_to_base64(frame)
         result = self._analyze_fn(self._settings, base64_image)
         self._state.add_result(result)
+        self._last_analysis_time = time.monotonic()
 
         logger.info(
             "Analysis complete: posture=%s, sleep=%s, anomalies=%d",
