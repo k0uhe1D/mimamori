@@ -17,7 +17,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from src.analyzer import AnalysisResult, analyze_frame, analyze_frame_gemini
-from src.capture import OpenCVCamera, RTSPCamera, encode_frame_to_base64
+from src.capture import HTTPCamera, OpenCVCamera, RTSPCamera, encode_frame_to_base64
 from src.config import RuntimeConfig, Settings
 from src.core import AnalyzerWorker, FrameGrabber, MonitoringState
 from src.recorder import VideoRecorder
@@ -60,9 +60,14 @@ def _create_camera(settings: Settings) -> CameraProtocol:
     Returns:
         Camera instance (RTSPCamera if camera_url is set, else OpenCVCamera).
     """
-    if settings.camera_url:
-        logger.info("Using RTSP camera: %s", settings.camera_url)
-        return RTSPCamera(url=settings.camera_url)
+    url = settings.camera_url
+    if url.startswith(("http://", "https://")):
+        shot_url = url.rstrip("/") + "/shot.jpg"
+        logger.info("Using HTTP camera: %s", shot_url)
+        return HTTPCamera(shot_url=shot_url)
+    if url:
+        logger.info("Using RTSP camera: %s", url)
+        return RTSPCamera(url=url)
     logger.info("Using local camera device: %d", settings.camera_device_index)
     return OpenCVCamera(
         device_index=settings.camera_device_index,
@@ -127,8 +132,11 @@ def run_web(settings: Settings) -> int:
 
     def swap_camera_fn(url: str, device_index: int) -> None:
         """Create a new camera and swap the grabber to use it."""
-        if url:
-            new_camera: CameraProtocol = RTSPCamera(url=url)
+        if url.startswith(("http://", "https://")):
+            shot_url = url.rstrip("/") + "/shot.jpg"
+            new_camera: CameraProtocol = HTTPCamera(shot_url=shot_url)
+        elif url:
+            new_camera = RTSPCamera(url=url)
         else:
             new_camera = OpenCVCamera(
                 device_index=device_index,
