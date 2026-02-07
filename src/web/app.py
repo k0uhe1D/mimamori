@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import ssl
+import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import cv2
 from fastapi import FastAPI
 from fastapi.requests import Request  # noqa: TC002
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from src.web.schemas import (
@@ -18,6 +21,8 @@ from src.web.schemas import (
     CameraSwapResponse,
     HistoryItem,
     HistoryResponse,
+    IPWebcamControlRequest,
+    IPWebcamControlResponse,
     RecordingControlResponse,
     SettingsGetResponse,
     SettingsUpdateRequest,
@@ -292,7 +297,66 @@ def create_app(
             ok=True, recording=False, file=filepath, message="Recording stopped"
         )
 
+    @app.post("/api/ipwebcam/control")
+    async def api_ipwebcam_control(
+        body: IPWebcamControlRequest,
+    ) -> IPWebcamControlResponse:
+        """Proxy control commands to IP Webcam."""
+        cam_url = runtime_config.camera_url
+        if not cam_url.startswith(("http://", "https://")):
+            return IPWebcamControlResponse(ok=False, message="IP Webcam not configured")
+        if not _is_allowed_ipwebcam_path(body.path):
+            return IPWebcamControlResponse(ok=False, message="Command not allowed")
+        url = cam_url.rstrip("/") + body.path
+        try:
+            await asyncio.to_thread(_ipwebcam_fetch, url)
+        except Exception:
+            logger.exception("IP Webcam control failed: %s", body.path)
+            return IPWebcamControlResponse(ok=False, message="Request failed")
+        logger.info("IP Webcam control: %s", body.path)
+        return IPWebcamControlResponse(ok=True)
+
+    @app.get("/api/ipwebcam/status")
+    async def api_ipwebcam_status() -> JSONResponse:
+        """Get current IP Webcam status and available settings."""
+        cam_url = runtime_config.camera_url
+        if not cam_url.startswith(("http://", "https://")):
+            return JSONResponse({"ok": False})
+        url = cam_url.rstrip("/") + "/status.json?show_avail=1"
+        try:
+            import json
+
+            raw = await asyncio.to_thread(_ipwebcam_fetch, url)
+            data: dict[str, Any] = json.loads(raw)
+            return JSONResponse({"ok": True, **data})
+        except Exception:
+            logger.exception("IP Webcam status fetch failed")
+            return JSONResponse({"ok": False})
+
     return app
+
+
+_IPWEBCAM_SSL_CTX = ssl.create_default_context()
+_IPWEBCAM_SSL_CTX.check_hostname = False
+_IPWEBCAM_SSL_CTX.verify_mode = ssl.CERT_NONE
+
+_ALLOWED_IPWEBCAM_PATHS = frozenset({"/enabletorch", "/disabletorch", "/focus"})
+_ALLOWED_IPWEBCAM_PREFIXES = ("/settings/", "/ptz")
+
+
+def _is_allowed_ipwebcam_path(path: str) -> bool:
+    """Check if the IP Webcam path is in the whitelist."""
+    if path in _ALLOWED_IPWEBCAM_PATHS:
+        return True
+    return any(path.startswith(p) for p in _ALLOWED_IPWEBCAM_PREFIXES)
+
+
+def _ipwebcam_fetch(url: str) -> str:
+    """Fetch a URL from IP Webcam (sync, run via asyncio.to_thread)."""
+    req = urllib.request.Request(url)
+    with urllib.request.urlopen(req, context=_IPWEBCAM_SSL_CTX, timeout=5) as resp:
+        result: str = resp.read().decode("utf-8")
+        return result
 
 
 def _generate_frames(
