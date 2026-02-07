@@ -23,7 +23,7 @@ class Settings:
         gemini_model: Gemini model to use for analysis.
     """
 
-    llm_provider: str = "openai"
+    llm_provider: str = ""
     openai_api_key: str = ""
     gemini_api_key: str = ""
     camera_device_index: int = 0
@@ -39,7 +39,7 @@ class Settings:
         """Create Settings from environment variables.
 
         Environment variables:
-            LLM_PROVIDER (optional, default "openai"): "openai" or "gemini".
+            LLM_PROVIDER (required): "openai" or "gemini".
             OPENAI_API_KEY: OpenAI API key (required when provider is openai).
             GEMINI_API_KEY: Google Gemini API key (required when provider is gemini).
             CAMERA_DEVICE_INDEX (optional, default 0): Camera device index.
@@ -53,10 +53,19 @@ class Settings:
         Raises:
             ValueError: If required API key for the selected provider is not set.
         """
-        provider = os.environ.get("LLM_PROVIDER", "openai").lower()
+        provider = os.environ.get("LLM_PROVIDER", "").lower()
         openai_key = os.environ.get("OPENAI_API_KEY", "")
         gemini_key = os.environ.get("GEMINI_API_KEY", "")
 
+        if not provider:
+            msg = (
+                "LLM_PROVIDER environment variable is required."
+                " Set LLM_PROVIDER=openai or LLM_PROVIDER=gemini"
+            )
+            raise ValueError(msg)
+        if provider not in ("openai", "gemini"):
+            msg = f"LLM_PROVIDER={provider} is not supported. Use 'openai' or 'gemini'"
+            raise ValueError(msg)
         if provider == "openai" and not openai_key:
             msg = (
                 "OPENAI_API_KEY environment variable is required"
