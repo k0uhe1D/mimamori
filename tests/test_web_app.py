@@ -407,3 +407,45 @@ class TestApiRecordingControl:
         data = response.json()
         assert data["ok"] is False
         assert data["message"] == "Recording not available"
+
+
+class TestApiIPWebcam:
+    """Tests for IP Webcam proxy endpoints."""
+
+    def test_control_not_configured(self) -> None:
+        """POST /api/ipwebcam/control returns error when camera is not HTTP."""
+        client, _, _ = _make_app()
+        response = client.post("/api/ipwebcam/control", json={"path": "/enabletorch"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is False
+        assert data["message"] == "IP Webcam not configured"
+
+    def test_control_disallowed_path(self) -> None:
+        """POST /api/ipwebcam/control rejects disallowed paths."""
+        client, _, runtime_config = _make_app()
+        runtime_config.camera_url = "http://192.168.1.1:8080"
+        response = client.post("/api/ipwebcam/control", json={"path": "/admin/delete"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is False
+        assert data["message"] == "Command not allowed"
+
+    def test_control_allowed_paths(self) -> None:
+        """Allowed paths pass the whitelist check."""
+        from src.web.app import _is_allowed_ipwebcam_path
+
+        assert _is_allowed_ipwebcam_path("/enabletorch") is True
+        assert _is_allowed_ipwebcam_path("/disabletorch") is True
+        assert _is_allowed_ipwebcam_path("/focus") is True
+        assert _is_allowed_ipwebcam_path("/settings/night_vision?set=on") is True
+        assert _is_allowed_ipwebcam_path("/ptz?zoom=150") is True
+        assert _is_allowed_ipwebcam_path("/admin") is False
+
+    def test_status_not_configured(self) -> None:
+        """GET /api/ipwebcam/status returns ok=false when not HTTP camera."""
+        client, _, _ = _make_app()
+        response = client.get("/api/ipwebcam/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is False

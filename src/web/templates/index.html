@@ -143,24 +143,29 @@
     .form-row-inline { display: flex; gap: 8px; align-items: flex-end; }
     .form-row-inline .form-group { flex: 1; margin-bottom: 0; }
     .form-actions { display: flex; gap: 8px; margin-top: 12px; }
-    /* History cards (mobile) */
-    .history-cards { display: flex; flex-direction: column; gap: 8px; }
-    .history-card {
-      background: var(--bg); border-radius: var(--radius-sm); padding: 12px;
+    /* Camera controls */
+    .cam-toggles { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .cam-toggle { min-width: auto; padding: 8px 14px; font-size: 0.8em; }
+    .cam-toggle.on { background: var(--success); }
+    .cam-slider { margin-bottom: 10px; }
+    .cam-slider label { font-size: 0.85em; font-weight: 600; color: var(--text-light); display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .cam-slider input[type=range] { width: 100%; min-height: var(--tap-size); }
+    .cam-slider select { width: 100%; padding: 8px; border: 1.5px solid var(--border-dark); border-radius: var(--radius-sm); min-height: var(--tap-size); }
+    /* History */
+    .history-list { display: flex; flex-direction: column; gap: 6px; }
+    .history-row {
+      display: grid; grid-template-columns: auto 1fr auto;
+      gap: 8px; align-items: center; padding: 8px 10px;
+      background: var(--bg); border-radius: var(--radius-sm); font-size: 0.85em;
       border-left: 3px solid var(--accent);
     }
-    .history-card.has-anomaly { border-left-color: var(--danger); background: #fef9f9; }
-    .history-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .history-card-time { font-size: 0.8em; color: var(--text-muted); font-weight: 600; }
-    .history-card-body { font-size: 0.9em; }
-    .history-card-row { display: flex; justify-content: space-between; padding: 3px 0; }
-    .history-card-label { font-weight: 600; color: var(--text-light); font-size: 0.85em; }
-    /* History table (desktop) */
-    .history-table { display: none; }
-    .history-table table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-    .history-table th { text-align: left; padding: 10px 8px; background: var(--bg); border-bottom: 2px solid var(--border-dark); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-    .history-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
-    .history-table tr:hover { background: #f8fafc; }
+    .history-row.has-anomaly { border-left-color: var(--danger); background: #fef9f9; }
+    .history-row-time { font-weight: 600; color: var(--text-muted); font-size: 0.8em; white-space: nowrap; }
+    .history-row-body { min-width: 0; }
+    .history-row-summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-row-meta { font-size: 0.75em; color: var(--text-light); }
+    .history-pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 8px; font-size: 0.85em; }
+    .history-pager button { min-height: 36px; min-width: 36px; }
     .no-data { color: var(--text-muted); font-style: italic; padding: 24px 0; text-align: center; }
     /* Toast */
     .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
@@ -177,9 +182,9 @@
       .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; }
       .video-container { grid-column: 1 / 2; }
       .result-container { grid-column: 2 / 3; }
+      .cam-controls-container { grid-column: 1 / -1; }
+      .cam-controls-container .cam-inner { display: grid; grid-template-columns: auto 1fr; gap: 8px 24px; align-items: start; }
       .history-container, .settings-container { grid-column: 1 / -1; }
-      .history-cards { display: none; }
-      .history-table { display: block; }
       .form-row-inline .form-group { max-width: 300px; }
       .settings-container .card-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
     }
@@ -210,16 +215,38 @@
         <div class="no-data">解析結果を待っています...</div>
       </div>
     </div>
+    <div class="card cam-controls-container" id="camControlsCard" style="display:none">
+      <h2>Camera</h2>
+      <div class="cam-inner">
+        <div class="cam-toggles">
+          <button class="btn btn-sm cam-toggle" id="torchBtn" onclick="camCmd('/enabletorch','/disabletorch','torchBtn','torch')">Light</button>
+          <button class="btn btn-sm cam-toggle" id="nightBtn" onclick="camCmd('/settings/night_vision?set=on','/settings/night_vision?set=off','nightBtn','night_vision')">Night</button>
+          <button class="btn btn-sm cam-toggle" id="ffcBtn" onclick="camCmd('/settings/ffc?set=on','/settings/ffc?set=off','ffcBtn','ffc')">Front</button>
+          <button class="btn btn-sm btn-outline cam-toggle" onclick="camSend('/focus')">AF</button>
+        </div>
+        <div>
+          <div class="cam-slider">
+            <label>Zoom <span id="zoomVal">1.0x</span></label>
+            <input type="range" id="zoomSlider" min="100" max="800" step="7" value="100" oninput="camSend('/ptz?zoom='+this.value);document.getElementById('zoomVal').textContent=(this.value/100).toFixed(1)+'x'">
+          </div>
+          <div class="cam-slider">
+            <label>Quality <span id="qualVal">50%</span></label>
+            <input type="range" id="qualSlider" min="1" max="100" value="50" oninput="camSend('/settings/quality?set='+this.value);document.getElementById('qualVal').textContent=this.value+'%'">
+          </div>
+          <div class="cam-slider">
+            <label>Resolution</label>
+            <select id="resSelect" onchange="camSend('/settings/video_size?set='+this.value)"></select>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="card history-container">
       <h2>History</h2>
-      <div class="history-cards" id="historyCards">
-        <div class="no-data">履歴なし</div>
-      </div>
-      <div class="history-table">
-        <table>
-          <thead><tr><th>時刻</th><th>姿勢</th><th>睡眠状態</th><th>動作</th><th>要約</th><th>異常</th></tr></thead>
-          <tbody id="historyBody"><tr><td colspan="6" class="no-data">履歴なし</td></tr></tbody>
-        </table>
+      <div class="history-list" id="historyList"><div class="no-data">履歴なし</div></div>
+      <div class="history-pager" id="historyPager" style="display:none">
+        <button class="btn btn-outline btn-sm" onclick="historyPrev()">&lt;</button>
+        <span id="historyPageInfo">1 / 1</span>
+        <button class="btn btn-outline btn-sm" onclick="historyNext()">&gt;</button>
       </div>
     </div>
     <div class="card settings-container">
@@ -339,30 +366,32 @@
         area.innerHTML = h;
       } catch (e) { document.getElementById('statusDot').style.background = '#e74c3c'; }
     }
+    /* -- History with pagination -- */
+    var historyItems = [], historyPage = 0, HISTORY_PER_PAGE = 5;
     async function fetchHistory() {
       try {
         var r = await fetch('/api/history'), d = await r.json();
-        var cardsEl = document.getElementById('historyCards'), bodyEl = document.getElementById('historyBody');
-        if (d.items.length === 0) { cardsEl.innerHTML = '<div class="no-data">履歴なし</div>'; bodyEl.innerHTML = '<tr><td colspan="6" class="no-data">履歴なし</td></tr>'; return; }
-        cardsEl.innerHTML = d.items.map(function(item) {
-          var cls = item.anomalies.length > 0 ? 'history-card has-anomaly' : 'history-card';
-          var actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') : '-';
-          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : '<span style="color:var(--success)">なし</span>';
-          return '<div class="' + cls + '"><div class="history-card-header"><span class="history-card-time">' + formatTime(item.timestamp) + '</span>' + confidenceBadge(item.confidence) + '</div><div class="history-card-body">' +
-            '<div class="history-card-row"><span class="history-card-label">姿勢</span><span>' + escapeHtml(item.posture) + '</span></div>' +
-            '<div class="history-card-row"><span class="history-card-label">睡眠</span><span>' + escapeHtml(item.sleep_state) + '</span></div>' +
-            '<div class="history-card-row"><span class="history-card-label">動作</span><span>' + actions + '</span></div>' +
-            '<div class="history-card-row"><span class="history-card-label">要約</span><span>' + escapeHtml(item.summary) + '</span></div>' +
-            '<div class="history-card-row"><span class="history-card-label">異常</span><span>' + anomaly + '</span></div>' +
-            '</div></div>';
-        }).join('');
-        bodyEl.innerHTML = d.items.map(function(item) {
-          var anomaly = item.anomalies.length > 0 ? '<span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : '<span style="color:var(--success)">なし</span>';
-          var actions = item.actions && item.actions.length > 0 ? item.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join('') : '-';
-          return '<tr><td>' + formatTime(item.timestamp) + '</td><td>' + escapeHtml(item.posture) + '</td><td>' + escapeHtml(item.sleep_state) + '</td><td>' + actions + '</td><td>' + escapeHtml(item.summary) + '</td><td>' + anomaly + '</td></tr>';
-        }).join('');
+        historyItems = d.items; historyPage = 0; renderHistory();
       } catch (e) { /* ignore */ }
     }
+    function renderHistory() {
+      var el = document.getElementById('historyList'), pager = document.getElementById('historyPager');
+      if (historyItems.length === 0) { el.innerHTML = '<div class="no-data">履歴なし</div>'; pager.style.display = 'none'; return; }
+      var pages = Math.ceil(historyItems.length / HISTORY_PER_PAGE);
+      var start = historyPage * HISTORY_PER_PAGE, slice = historyItems.slice(start, start + HISTORY_PER_PAGE);
+      el.innerHTML = slice.map(function(item) {
+        var cls = item.anomalies.length > 0 ? 'history-row has-anomaly' : 'history-row';
+        var anomaly = item.anomalies.length > 0 ? ' <span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : '';
+        return '<div class="' + cls + '"><span class="history-row-time">' + formatTime(item.timestamp) + '</span>' +
+          '<div class="history-row-body"><div class="history-row-summary">' + escapeHtml(item.summary) + anomaly + '</div>' +
+          '<div class="history-row-meta">' + escapeHtml(item.posture) + ' / ' + escapeHtml(item.sleep_state) + '</div></div>' +
+          confidenceBadge(item.confidence) + '</div>';
+      }).join('');
+      if (pages > 1) { pager.style.display = 'flex'; document.getElementById('historyPageInfo').textContent = (historyPage + 1) + ' / ' + pages; }
+      else { pager.style.display = 'none'; }
+    }
+    function historyPrev() { if (historyPage > 0) { historyPage--; renderHistory(); } }
+    function historyNext() { var pages = Math.ceil(historyItems.length / HISTORY_PER_PAGE); if (historyPage < pages - 1) { historyPage++; renderHistory(); } }
     async function saveAnalysisSettings() {
       var body = {}, interval = parseInt(document.getElementById('intervalInput').value);
       if (!isNaN(interval) && interval >= 1) body.analysis_interval_seconds = interval;
@@ -424,7 +453,39 @@
         }
       } catch (e) { showToast('解析制御に失敗しました', 'error'); }
     }
-    loadSettings(); fetchStatus(); fetchHistory();
+    /* -- IP Webcam camera controls -- */
+    var camState = {};
+    async function loadCamControls() {
+      try {
+        var r = await fetch('/api/ipwebcam/status'), d = await r.json();
+        if (!d.ok) return;
+        document.getElementById('camControlsCard').style.display = '';
+        var cv = d.curvals || {}, av = d.avail || {};
+        camState = { torch: cv.torch === 'on', night_vision: cv.night_vision === 'on', ffc: cv.ffc === 'on' };
+        updateToggleBtn('torchBtn', camState.torch);
+        updateToggleBtn('nightBtn', camState.night_vision);
+        updateToggleBtn('ffcBtn', camState.ffc);
+        var z = parseInt(cv.zoom) || 100; document.getElementById('zoomSlider').value = z;
+        document.getElementById('zoomVal').textContent = (z / 100).toFixed(1) + 'x';
+        var q = parseInt(cv.quality) || 50; document.getElementById('qualSlider').value = q;
+        document.getElementById('qualVal').textContent = q + '%';
+        var sel = document.getElementById('resSelect');
+        if (av.video_size) { sel.innerHTML = av.video_size.map(function(s) { return '<option value="' + s + '"' + (s === cv.video_size ? ' selected' : '') + '>' + s + '</option>'; }).join(''); }
+      } catch (e) { /* IP Webcam not available */ }
+    }
+    function updateToggleBtn(id, on) {
+      var b = document.getElementById(id);
+      if (on) b.classList.add('on'); else b.classList.remove('on');
+    }
+    async function camSend(path) {
+      try { await fetch('/api/ipwebcam/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: path }) }); } catch (e) { showToast('Camera control failed', 'error'); }
+    }
+    async function camCmd(onPath, offPath, btnId, stateKey) {
+      var on = !camState[stateKey];
+      await camSend(on ? onPath : offPath);
+      camState[stateKey] = on; updateToggleBtn(btnId, on);
+    }
+    loadSettings(); fetchStatus(); fetchHistory(); loadCamControls();
     setInterval(fetchStatus, 5000); setInterval(fetchHistory, 10000);
   </script>
 </body>

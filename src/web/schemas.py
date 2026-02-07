@@ -115,3 +115,16 @@ class RecordingControlResponse(BaseModel):
     recording: bool
     file: str = ""
     message: str = ""
+
+
+class IPWebcamControlRequest(BaseModel):
+    """Request for POST /api/ipwebcam/control."""
+
+    path: str
+
+
+class IPWebcamControlResponse(BaseModel):
+    """Response for POST /api/ipwebcam/control."""
+
+    ok: bool
+    message: str = ""
