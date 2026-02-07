@@ -2,10 +2,12 @@
 
 from src.capture.camera import CameraProtocol, OpenCVCamera
 from src.capture.encoding import encode_frame_to_base64
+from src.capture.http_camera import HTTPCamera
 from src.capture.rtsp_camera import RTSPCamera
 
 __all__ = [
     "CameraProtocol",
+    "HTTPCamera",
     "OpenCVCamera",
     "RTSPCamera",
     "encode_frame_to_base64",
