@@ -2,6 +2,14 @@
 
 from src.core.analyzer_worker import AnalyzerWorker
 from src.core.grabber import FrameGrabber
+from src.core.sleep_session import SleepSession
+from src.core.sleep_tracker import SleepTracker
 from src.core.state import MonitoringState
 
-__all__ = ["AnalyzerWorker", "FrameGrabber", "MonitoringState"]
+__all__ = [
+    "AnalyzerWorker",
+    "FrameGrabber",
+    "MonitoringState",
+    "SleepSession",
+    "SleepTracker",
+]
