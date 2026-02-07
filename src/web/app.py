@@ -12,7 +12,12 @@ from typing import TYPE_CHECKING, Any
 import cv2
 from fastapi import FastAPI
 from fastapi.requests import Request  # noqa: TC002
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    StreamingResponse,
+)
 from fastapi.templating import Jinja2Templates
 
 from src.web.schemas import (
@@ -355,6 +360,7 @@ def create_app(
                 duration_seconds=session.duration_seconds,
                 is_active=session.is_active,
                 snapshot_count=len(session.snapshot_paths),
+                timelapse_available=session.timelapse_path is not None,
             ),
         )
 
@@ -371,11 +377,32 @@ def create_app(
                 duration_seconds=s.duration_seconds,
                 is_active=s.is_active,
                 snapshot_count=len(s.snapshot_paths),
+                timelapse_available=s.timelapse_path is not None,
             )
             for s in sessions
         ]
         total = sum(s.duration_seconds for s in sessions)
         return SleepHistoryResponse(sessions=items, total_sleep_seconds=total)
+
+    @app.get("/api/sleep/sessions/{index}/timelapse")
+    async def api_sleep_timelapse(index: int) -> FileResponse:
+        """Get timelapse GIF for a sleep session.
+
+        Args:
+            index: Session index (0 = most recent) in reverse chronological order.
+
+        Returns:
+            GIF file response.
+        """
+        if sleep_tracker is None:
+            return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        sessions = sleep_tracker.get_sessions()
+        if index < 0 or index >= len(sessions):
+            return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        session = sessions[index]
+        if session.timelapse_path is None or not Path(session.timelapse_path).exists():
+            return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        return FileResponse(session.timelapse_path, media_type="image/gif")
 
     return app
 

@@ -138,6 +138,7 @@ class SleepSessionItem(BaseModel):
     duration_seconds: float
     is_active: bool
     snapshot_count: int
+    timelapse_available: bool = False
 
 
 class SleepStatusResponse(BaseModel):
