@@ -449,3 +449,99 @@ class TestApiIPWebcam:
         assert response.status_code == 200
         data = response.json()
         assert data["ok"] is False
+
+
+class TestApiSleepStatus:
+    """Tests for GET /api/sleep/status endpoint."""
+
+    def test_sleep_status_no_tracker(self) -> None:
+        """GET /api/sleep/status returns not sleeping when no tracker."""
+        client, _, _ = _make_app()
+        response = client.get("/api/sleep/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_sleeping"] is False
+        assert data["current_session"] is None
+
+    def test_sleep_status_not_sleeping(self) -> None:
+        """GET /api/sleep/status returns not sleeping when tracker has no session."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        tracker_mock = MagicMock()
+        tracker_mock.active_session = None
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_sleeping"] is False
+
+    def test_sleep_status_sleeping(self) -> None:
+        """GET /api/sleep/status returns current session when sleeping."""
+        from datetime import UTC, datetime
+
+        from src.core.sleep_session import SleepSession
+
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        session = SleepSession(
+            start_time=datetime(2025, 6, 1, 22, 0, 0, tzinfo=UTC),
+            snapshot_paths=["/tmp/snap1.jpg", "/tmp/snap2.jpg"],
+        )
+        tracker_mock = MagicMock()
+        tracker_mock.active_session = session
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_sleeping"] is True
+        assert data["current_session"]["is_active"] is True
+        assert data["current_session"]["snapshot_count"] == 2
+
+
+class TestApiSleepHistory:
+    """Tests for GET /api/sleep/history endpoint."""
+
+    def test_sleep_history_no_tracker(self) -> None:
+        """GET /api/sleep/history returns empty when no tracker."""
+        client, _, _ = _make_app()
+        response = client.get("/api/sleep/history")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["sessions"] == []
+        assert data["total_sleep_seconds"] == 0.0
+
+    def test_sleep_history_with_sessions(self) -> None:
+        """GET /api/sleep/history returns session list and total."""
+        from datetime import UTC, datetime
+
+        from src.core.sleep_session import SleepSession
+
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        sessions = [
+            SleepSession(
+                start_time=datetime(2025, 6, 1, 22, 0, 0, tzinfo=UTC),
+                end_time=datetime(2025, 6, 2, 0, 0, 0, tzinfo=UTC),
+            ),
+            SleepSession(
+                start_time=datetime(2025, 6, 2, 2, 0, 0, tzinfo=UTC),
+                end_time=datetime(2025, 6, 2, 5, 0, 0, tzinfo=UTC),
+            ),
+        ]
+        tracker_mock = MagicMock()
+        tracker_mock.get_sessions.return_value = sessions
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/history")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["sessions"]) == 2
+        assert data["total_sleep_seconds"] == 18000.0  # 2h + 3h = 5h

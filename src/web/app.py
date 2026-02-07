@@ -27,6 +27,9 @@ from src.web.schemas import (
     SettingsGetResponse,
     SettingsUpdateRequest,
     SettingsUpdateResponse,
+    SleepHistoryResponse,
+    SleepSessionItem,
+    SleepStatusResponse,
     StatusResponse,
     StreamControlResponse,
 )
@@ -38,6 +41,7 @@ if TYPE_CHECKING:
     from src.config.settings import Settings
     from src.core.analyzer_worker import AnalyzerWorker
     from src.core.grabber import FrameGrabber
+    from src.core.sleep_tracker import SleepTracker
     from src.core.state import MonitoringState
     from src.recorder.recorder import VideoRecorder
 
@@ -54,6 +58,7 @@ def create_app(
     settings: Settings | None = None,
     worker: AnalyzerWorker | None = None,
     recorder: VideoRecorder | None = None,
+    sleep_tracker: SleepTracker | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -65,6 +70,7 @@ def create_app(
         settings: Application settings (for API key availability info).
         worker: AnalyzerWorker instance for pause/resume control.
         recorder: VideoRecorder instance for recording control.
+        sleep_tracker: SleepTracker instance for sleep monitoring.
 
     Returns:
         Configured FastAPI application instance.
@@ -332,6 +338,44 @@ def create_app(
         except Exception:
             logger.exception("IP Webcam status fetch failed")
             return JSONResponse({"ok": False})
+
+    @app.get("/api/sleep/status")
+    async def api_sleep_status() -> SleepStatusResponse:
+        """Get current sleep tracking status."""
+        if sleep_tracker is None:
+            return SleepStatusResponse(is_sleeping=False)
+        session = sleep_tracker.active_session
+        if session is None:
+            return SleepStatusResponse(is_sleeping=False)
+        return SleepStatusResponse(
+            is_sleeping=True,
+            current_session=SleepSessionItem(
+                start_time=session.start_time,
+                end_time=session.end_time,
+                duration_seconds=session.duration_seconds,
+                is_active=session.is_active,
+                snapshot_count=len(session.snapshot_paths),
+            ),
+        )
+
+    @app.get("/api/sleep/history")
+    async def api_sleep_history() -> SleepHistoryResponse:
+        """Get sleep session history."""
+        if sleep_tracker is None:
+            return SleepHistoryResponse(sessions=[], total_sleep_seconds=0.0)
+        sessions = sleep_tracker.get_sessions(limit=50)
+        items = [
+            SleepSessionItem(
+                start_time=s.start_time,
+                end_time=s.end_time,
+                duration_seconds=s.duration_seconds,
+                is_active=s.is_active,
+                snapshot_count=len(s.snapshot_paths),
+            )
+            for s in sessions
+        ]
+        total = sum(s.duration_seconds for s in sessions)
+        return SleepHistoryResponse(sessions=items, total_sleep_seconds=total)
 
     return app
 

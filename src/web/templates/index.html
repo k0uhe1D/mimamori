@@ -184,6 +184,7 @@
       .result-container { grid-column: 2 / 3; }
       .cam-controls-container { grid-column: 1 / -1; }
       .cam-controls-container .cam-inner { display: grid; grid-template-columns: auto 1fr; gap: 8px 24px; align-items: start; }
+      .sleep-container { grid-column: 1 / -1; }
       .history-container, .settings-container { grid-column: 1 / -1; }
       .form-row-inline .form-group { max-width: 300px; }
       .settings-container .card-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
@@ -239,6 +240,11 @@
           </div>
         </div>
       </div>
+    </div>
+    <div class="card sleep-container">
+      <h2>Sleep</h2>
+      <div id="sleepStatus"><div class="no-data">睡眠データなし</div></div>
+      <div class="history-list" id="sleepHistory" style="margin-top:10px"></div>
     </div>
     <div class="card history-container">
       <h2>History</h2>
@@ -485,8 +491,41 @@
       await camSend(on ? onPath : offPath);
       camState[stateKey] = on; updateToggleBtn(btnId, on);
     }
-    loadSettings(); fetchStatus(); fetchHistory(); loadCamControls();
-    setInterval(fetchStatus, 5000); setInterval(fetchHistory, 10000);
+    function formatDuration(sec) {
+      var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+      if (h > 0) return h + '時間' + m + '分';
+      return m + '分';
+    }
+    async function fetchSleepStatus() {
+      try {
+        var r = await fetch('/api/sleep/status'), d = await r.json();
+        var el = document.getElementById('sleepStatus');
+        if (!d.is_sleeping) { el.innerHTML = '<div class="result-item"><span class="result-label">状態</span><span class="result-value">起きている</span></div>'; return; }
+        var s = d.current_session, h = '';
+        h += '<div class="result-item"><span class="result-label">状態</span><span class="result-value" style="color:var(--accent);font-weight:700">睡眠中</span></div>';
+        h += '<div class="result-item"><span class="result-label">寝た時間</span><span class="result-value">' + formatTime(s.start_time) + '</span></div>';
+        h += '<div class="result-item"><span class="result-label">経過時間</span><span class="result-value">' + formatDuration(s.duration_seconds) + '</span></div>';
+        h += '<div class="result-item"><span class="result-label">スナップショット</span><span class="result-value">' + s.snapshot_count + '枚</span></div>';
+        el.innerHTML = h;
+      } catch (e) { /* ignore */ }
+    }
+    async function fetchSleepHistory() {
+      try {
+        var r = await fetch('/api/sleep/history'), d = await r.json();
+        var el = document.getElementById('sleepHistory');
+        if (d.sessions.length === 0) { el.innerHTML = ''; return; }
+        var h = '<div style="font-size:0.85em;color:var(--text-muted);margin-bottom:6px">合計睡眠: ' + formatDuration(d.total_sleep_seconds) + '</div>';
+        h += d.sessions.slice(0, 10).map(function(s) {
+          var endStr = s.is_active ? '...' : formatTime(s.end_time);
+          return '<div class="history-row" style="border-left-color:var(--accent)"><span class="history-row-time">' + formatTime(s.start_time) + '</span>' +
+            '<div class="history-row-body"><div class="history-row-summary">' + formatDuration(s.duration_seconds) + '</div>' +
+            '<div class="history-row-meta">' + formatTime(s.start_time) + ' - ' + endStr + ' / ' + s.snapshot_count + '枚</div></div></div>';
+        }).join('');
+        el.innerHTML = h;
+      } catch (e) { /* ignore */ }
+    }
+    loadSettings(); fetchStatus(); fetchHistory(); fetchSleepStatus(); fetchSleepHistory(); loadCamControls();
+    setInterval(fetchStatus, 5000); setInterval(fetchHistory, 10000); setInterval(fetchSleepStatus, 10000); setInterval(fetchSleepHistory, 30000);
   </script>
 </body>
 </html>

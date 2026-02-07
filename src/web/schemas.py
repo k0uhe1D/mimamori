@@ -128,3 +128,27 @@ class IPWebcamControlResponse(BaseModel):
 
     ok: bool
     message: str = ""
+
+
+class SleepSessionItem(BaseModel):
+    """Single sleep session entry."""
+
+    start_time: datetime
+    end_time: datetime | None = None
+    duration_seconds: float
+    is_active: bool
+    snapshot_count: int
+
+
+class SleepStatusResponse(BaseModel):
+    """Response for GET /api/sleep/status."""
+
+    is_sleeping: bool
+    current_session: SleepSessionItem | None = None
+
+
+class SleepHistoryResponse(BaseModel):
+    """Response for GET /api/sleep/history."""
+
+    sessions: list[SleepSessionItem]
+    total_sleep_seconds: float
