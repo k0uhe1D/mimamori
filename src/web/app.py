@@ -6,6 +6,7 @@ import asyncio
 import logging
 import ssl
 import urllib.request
+from datetime import date, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -360,7 +361,6 @@ def create_app(
                 duration_seconds=session.duration_seconds,
                 is_active=session.is_active,
                 snapshot_count=len(session.snapshot_paths),
-                timelapse_available=session.timelapse_path is not None,
             ),
         )
 
@@ -377,32 +377,38 @@ def create_app(
                 duration_seconds=s.duration_seconds,
                 is_active=s.is_active,
                 snapshot_count=len(s.snapshot_paths),
-                timelapse_available=s.timelapse_path is not None,
             )
             for s in sessions
         ]
         total = sum(s.duration_seconds for s in sessions)
-        return SleepHistoryResponse(sessions=items, total_sleep_seconds=total)
+        yesterday = date.today() - timedelta(days=1)
+        has_daily = sleep_tracker.get_daily_timelapse(yesterday) is not None
+        return SleepHistoryResponse(
+            sessions=items,
+            total_sleep_seconds=total,
+            daily_timelapse_available=has_daily,
+        )
 
-    @app.get("/api/sleep/sessions/{index}/timelapse")
-    async def api_sleep_timelapse(index: int) -> FileResponse:
-        """Get timelapse GIF for a sleep session.
+    @app.get("/api/sleep/timelapse/{date_str}")
+    async def api_sleep_timelapse(date_str: str) -> FileResponse:
+        """Get daily timelapse GIF for a given date.
 
         Args:
-            index: Session index (0 = most recent) in reverse chronological order.
+            date_str: Date in YYYY-MM-DD format.
 
         Returns:
             GIF file response.
         """
         if sleep_tracker is None:
             return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
-        sessions = sleep_tracker.get_sessions()
-        if index < 0 or index >= len(sessions):
+        try:
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            return JSONResponse({"detail": "Invalid date"}, status_code=400)  # type: ignore[return-value]
+        gif_path = sleep_tracker.get_daily_timelapse(target_date)
+        if gif_path is None or not Path(gif_path).exists():
             return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
-        session = sessions[index]
-        if session.timelapse_path is None or not Path(session.timelapse_path).exists():
-            return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
-        return FileResponse(session.timelapse_path, media_type="image/gif")
+        return FileResponse(gif_path, media_type="image/gif")
 
     return app
 
