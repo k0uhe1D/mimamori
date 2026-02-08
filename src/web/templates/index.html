@@ -167,8 +167,72 @@
     .history-pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 8px; font-size: 0.85em; }
     .history-pager button { min-height: 36px; min-width: 36px; }
     .no-data { color: var(--text-muted); font-style: italic; padding: 24px 0; text-align: center; }
+    /* Tab bar */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+      background: var(--card-bg); border-top: 1px solid var(--border);
+      display: flex; justify-content: space-around; align-items: center;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    }
+    .tab-bar button {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+      background: none; border: none; cursor: pointer; padding: 8px 0 6px;
+      color: var(--text-muted); font-size: 0.7em; font-weight: 600;
+      touch-action: manipulation; transition: color 0.15s;
+    }
+    .tab-bar button .tab-icon { font-size: 1.6em; line-height: 1; }
+    .tab-bar button.active { color: var(--accent); }
+    body { padding-bottom: 64px; }
+    /* Tab content */
+    .tab-content { display: none; }
+    .tab-content.active { display: contents; }
+    /* Sleep timeline */
+    .timeline-card { margin-top: 12px; }
+    .timeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .timeline-header .timeline-date { font-weight: 600; font-size: 0.9em; }
+    .timeline-header .timeline-total { font-size: 0.85em; color: var(--text-muted); }
+    .timeline-bar {
+      position: relative; height: 32px; background: var(--bg);
+      border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 4px;
+    }
+    .timeline-block {
+      position: absolute; top: 0; height: 100%;
+      background: var(--accent); opacity: 0.7; border-radius: 2px;
+      min-width: 2px; cursor: default;
+    }
+    .timeline-block.active {
+      opacity: 1;
+      animation: timelinePulse 2s infinite;
+    }
+    @keyframes timelinePulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+    .timeline-now {
+      position: absolute; top: -4px; bottom: -4px; width: 2px;
+      background: var(--danger); z-index: 2;
+    }
+    .timeline-now::after {
+      content: ''; position: absolute; top: -3px; left: -3px;
+      width: 8px; height: 8px; background: var(--danger);
+      border-radius: 50%;
+    }
+    .timeline-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.7em; color: var(--text-muted); padding: 0 1px;
+    }
+    .timeline-summary {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 0.75em; color: var(--text-muted); margin-top: 6px;
+    }
+    .timeline-legend { display: flex; align-items: center; gap: 4px; }
+    .timeline-legend-box {
+      width: 12px; height: 12px; border-radius: 2px;
+      background: var(--accent); opacity: 0.7;
+    }
     /* Toast */
-    .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+    .toast-container { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
     .toast {
       background: var(--primary); color: #fff; padding: 12px 24px;
       border-radius: var(--radius); font-size: 0.9em; font-weight: 500;
@@ -201,6 +265,7 @@
   </div>
   <div class="alert-banner" id="alertBanner"></div>
   <div class="main">
+    <div class="tab-content active" id="tabMonitor">
     <div class="card video-container">
       <h2>Live</h2>
       <img src="/stream" alt="Live Stream" id="liveStream">
@@ -241,11 +306,6 @@
         </div>
       </div>
     </div>
-    <div class="card sleep-container">
-      <h2>Sleep</h2>
-      <div id="sleepStatus"><div class="no-data">睡眠データなし</div></div>
-      <div class="history-list" id="sleepHistory" style="margin-top:10px"></div>
-    </div>
     <div class="card history-container">
       <h2>History</h2>
       <div class="history-list" id="historyList"><div class="no-data">履歴なし</div></div>
@@ -255,6 +315,29 @@
         <button class="btn btn-outline btn-sm" onclick="historyNext()">&gt;</button>
       </div>
     </div>
+    </div><!-- /tabMonitor -->
+    <div class="tab-content" id="tabSleep">
+    <div class="card sleep-container">
+      <h2>Sleep</h2>
+      <div id="sleepStatus"><div class="no-data">睡眠データなし</div></div>
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <span class="timeline-date" id="timelineDate"></span>
+          <span class="timeline-total" id="timelineTotal"></span>
+        </div>
+        <div class="timeline-bar" id="timelineBar"></div>
+        <div class="timeline-labels">
+          <span>0</span><span>3</span><span>6</span><span>9</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span>
+        </div>
+        <div class="timeline-summary">
+          <span class="timeline-legend"><span class="timeline-legend-box"></span>睡眠</span>
+          <span class="timeline-legend"><span class="timeline-legend-box" style="background:var(--danger);opacity:1;width:2px;height:12px"></span>現在</span>
+        </div>
+      </div>
+      <div class="history-list" id="sleepHistory" style="margin-top:10px"></div>
+    </div>
+    </div><!-- /tabSleep -->
+    <div class="tab-content" id="tabSettings">
     <div class="card settings-container">
       <h2>Settings</h2>
       <details id="settingsAnalysis" open>
@@ -305,9 +388,65 @@
         </div>
       </details>
     </div>
+    </div><!-- /tabSettings -->
   </div>
   <div class="toast-container" id="toastContainer"></div>
+  <nav class="tab-bar" id="tabBar">
+    <button class="active" onclick="switchTab('monitor')"><span class="tab-icon">&#x1F441;</span>モニター</button>
+    <button onclick="switchTab('sleep')"><span class="tab-icon">&#x1F319;</span>睡眠</button>
+    <button onclick="switchTab('settings')"><span class="tab-icon">&#x2699;</span>設定</button>
+  </nav>
   <script>
+    /* -- Tab navigation -- */
+    var currentTab = 'monitor';
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+      document.querySelectorAll('.tab-bar button').forEach(function(el) { el.classList.remove('active'); });
+      var tabMap = { monitor: 'tabMonitor', sleep: 'tabSleep', settings: 'tabSettings' };
+      document.getElementById(tabMap[tab]).classList.add('active');
+      var btns = document.querySelectorAll('.tab-bar button');
+      var idx = { monitor: 0, sleep: 1, settings: 2 };
+      btns[idx[tab]].classList.add('active');
+      location.hash = tab;
+      if (tab === 'monitor') { fetchHistory(); }
+      if (tab === 'sleep') { fetchSleepStatus(); fetchSleepHistory(); }
+      if (tab === 'settings') { loadSettings(); }
+    }
+    (function() {
+      var h = location.hash.replace('#', '');
+      if (h === 'sleep' || h === 'settings') switchTab(h);
+    })();
+    /* -- Timeline -- */
+    function renderTimeline(sessions, totalSleep) {
+      var bar = document.getElementById('timelineBar');
+      var now = new Date();
+      var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      var todayEnd = todayStart + 86400000;
+      var dayMs = 86400000;
+      document.getElementById('timelineDate').textContent = now.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' });
+      document.getElementById('timelineTotal').textContent = '合計: ' + formatDuration(totalSleep);
+      var html = '';
+      sessions.forEach(function(s) {
+        var start = new Date(s.start_time).getTime();
+        var end = s.is_active ? now.getTime() : new Date(s.end_time).getTime();
+        var clampStart = Math.max(start, todayStart);
+        var clampEnd = Math.min(end, todayEnd);
+        if (clampStart >= clampEnd) return;
+        var leftPct = ((clampStart - todayStart) / dayMs * 100).toFixed(2);
+        var widthPct = ((clampEnd - clampStart) / dayMs * 100).toFixed(2);
+        var activeCls = s.is_active ? ' active' : '';
+        var startStr = new Date(start).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        var endStr = s.is_active ? '現在' : new Date(end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        var title = startStr + ' - ' + endStr + ' (' + formatDuration(s.duration_seconds) + ')';
+        html += '<div class="timeline-block' + activeCls + '" style="left:' + leftPct + '%;width:' + widthPct + '%" title="' + title + '"></div>';
+      });
+      var nowPct = ((now.getTime() - todayStart) / dayMs * 100).toFixed(2);
+      if (nowPct >= 0 && nowPct <= 100) {
+        html += '<div class="timeline-now" style="left:' + nowPct + '%"></div>';
+      }
+      bar.innerHTML = html;
+    }
     function formatTime(ts) { return new Date(ts).toLocaleTimeString('ja-JP'); }
     function showToast(msg, type) {
       type = type || 'success';
@@ -513,20 +652,29 @@
       try {
         var r = await fetch('/api/sleep/history'), d = await r.json();
         var el = document.getElementById('sleepHistory');
+        renderTimeline(d.sessions, d.total_sleep_seconds);
         if (d.sessions.length === 0) { el.innerHTML = ''; return; }
-        var h = '<div style="font-size:0.85em;color:var(--text-muted);margin-bottom:6px">合計睡眠: ' + formatDuration(d.total_sleep_seconds) + '</div>';
-        h += d.sessions.slice(0, 10).map(function(s, i) {
+        var h = '';
+        if (d.daily_timelapse_available) {
+          var yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+          var ds = yesterday.toISOString().slice(0, 10);
+          h += '<div style="margin-bottom:8px"><a class="action-tag" href="/api/sleep/timelapse/' + ds + '" target="_blank">昨日のタイムラプス</a></div>';
+        }
+        h += '<div style="font-size:0.85em;color:var(--text-muted);margin-bottom:6px">合計睡眠: ' + formatDuration(d.total_sleep_seconds) + '</div>';
+        h += d.sessions.slice(0, 10).map(function(s) {
           var endStr = s.is_active ? '...' : formatTime(s.end_time);
-          var gifLink = s.timelapse_available ? ' <a class="action-tag" href="/api/sleep/sessions/' + i + '/timelapse" target="_blank">GIF</a>' : '';
           return '<div class="history-row" style="border-left-color:var(--accent)"><span class="history-row-time">' + formatTime(s.start_time) + '</span>' +
-            '<div class="history-row-body"><div class="history-row-summary">' + formatDuration(s.duration_seconds) + gifLink + '</div>' +
+            '<div class="history-row-body"><div class="history-row-summary">' + formatDuration(s.duration_seconds) + '</div>' +
             '<div class="history-row-meta">' + formatTime(s.start_time) + ' - ' + endStr + ' / ' + s.snapshot_count + '枚</div></div></div>';
         }).join('');
         el.innerHTML = h;
       } catch (e) { /* ignore */ }
     }
     loadSettings(); fetchStatus(); fetchHistory(); fetchSleepStatus(); fetchSleepHistory(); loadCamControls();
-    setInterval(fetchStatus, 5000); setInterval(fetchHistory, 10000); setInterval(fetchSleepStatus, 10000); setInterval(fetchSleepHistory, 30000);
+    setInterval(fetchStatus, 5000);
+    setInterval(function() { if (currentTab === 'monitor') fetchHistory(); }, 10000);
+    setInterval(function() { if (currentTab === 'sleep') fetchSleepStatus(); }, 10000);
+    setInterval(function() { if (currentTab === 'sleep') fetchSleepHistory(); }, 30000);
   </script>
 </body>
 </html>

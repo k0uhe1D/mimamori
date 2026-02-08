@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -108,6 +108,8 @@ class SleepTracker:
         self._sessions: list[SleepSession] = []
         self._last_checked_result_ts: datetime | None = None
         self._last_snapshot_time: datetime | None = None
+        self._current_date: date | None = None
+        self._daily_timelapses: dict[str, str] = {}
 
     def start(self) -> None:
         """Start the sleep tracker daemon thread."""
@@ -168,11 +170,17 @@ class SleepTracker:
         """Perform a single sleep state check.
 
         Logic:
+        0. Check for date rollover → build daily timelapse for previous day.
         1. Get latest result from state.
         2. If new result exists: check sleep_state to determine sleeping.
         3. If no new result + active session: still sleeping (frame unchanged).
         4. Start/end sessions and capture snapshots accordingly.
         """
+        today = date.today()
+        if self._current_date is not None and today != self._current_date:
+            self._build_daily_timelapse(self._current_date)
+        self._current_date = today
+
         result = self._state.get_latest_result()
         has_new_result = False
         sleeping = False
@@ -217,30 +225,54 @@ class SleepTracker:
             "Sleep session ended: %.0f seconds",
             session.duration_seconds,
         )
-        if session.snapshot_paths:
-            t = threading.Thread(
-                target=self._generate_timelapse,
-                args=(session,),
-                name="timelapse-gen",
-                daemon=True,
-            )
-            t.start()
 
-    def _generate_timelapse(self, session: SleepSession) -> None:
-        """Generate timelapse GIF for a completed session.
+    def _build_daily_timelapse(self, target_date: date) -> None:
+        """Build a daily timelapse GIF from all sessions on the target date.
+
+        Collects snapshots from all sessions whose start_time falls on
+        target_date (local time) and generates a single GIF in a background
+        thread.
 
         Args:
-            session: The sleep session to generate a timelapse for.
+            target_date: The local date to build the timelapse for.
         """
-        gif_name = session.start_time.strftime("%Y%m%d_%H%M%S") + "_timelapse.gif"
+        all_snapshots: list[str] = []
+        with self._lock:
+            for session in self._sessions:
+                if session.start_time.astimezone().date() == target_date:
+                    all_snapshots.extend(session.snapshot_paths)
+
+        if not all_snapshots:
+            return
+
+        date_str = target_date.isoformat()
+        gif_name = target_date.strftime("%Y%m%d") + "_daily_timelapse.gif"
         output_path = str(self._snapshot_dir / gif_name)
-        try:
-            result = generate_timelapse_gif(session.snapshot_paths, output_path)
-            if result is not None:
-                with self._lock:
-                    session.timelapse_path = result
-        except Exception:
-            logger.exception("Failed to generate timelapse GIF")
+
+        def _generate() -> None:
+            try:
+                result = generate_timelapse_gif(all_snapshots, output_path)
+                if result is not None:
+                    with self._lock:
+                        self._daily_timelapses[date_str] = result
+                    logger.info("Daily timelapse built for %s", date_str)
+            except Exception:
+                logger.exception("Failed to build daily timelapse for %s", date_str)
+
+        t = threading.Thread(target=_generate, name="daily-timelapse", daemon=True)
+        t.start()
+
+    def get_daily_timelapse(self, target_date: date) -> str | None:
+        """Get the path to the daily timelapse GIF for a given date.
+
+        Args:
+            target_date: The date to look up.
+
+        Returns:
+            Path to the GIF file, or None if not available.
+        """
+        with self._lock:
+            return self._daily_timelapses.get(target_date.isoformat())
 
     def _maybe_capture_snapshot(self) -> None:
         """Capture a snapshot if enough time has passed since the last one.

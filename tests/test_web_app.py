@@ -547,8 +547,8 @@ class TestApiSleepHistory:
         assert len(data["sessions"]) == 2
         assert data["total_sleep_seconds"] == 18000.0  # 2h + 3h = 5h
 
-    def test_sleep_history_timelapse_available(self) -> None:
-        """GET /api/sleep/history includes timelapse_available field."""
+    def test_sleep_history_daily_timelapse_available(self) -> None:
+        """GET /api/sleep/history includes daily_timelapse_available field."""
         from datetime import UTC, datetime
 
         from src.core.sleep_session import SleepSession
@@ -559,15 +559,11 @@ class TestApiSleepHistory:
             SleepSession(
                 start_time=datetime(2025, 6, 1, 22, 0, 0, tzinfo=UTC),
                 end_time=datetime(2025, 6, 2, 0, 0, 0, tzinfo=UTC),
-                timelapse_path="/tmp/test.gif",
-            ),
-            SleepSession(
-                start_time=datetime(2025, 6, 2, 2, 0, 0, tzinfo=UTC),
-                end_time=datetime(2025, 6, 2, 5, 0, 0, tzinfo=UTC),
             ),
         ]
         tracker_mock = MagicMock()
         tracker_mock.get_sessions.return_value = sessions
+        tracker_mock.get_daily_timelapse.return_value = "/tmp/daily.gif"
         app = create_app(
             state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
         )
@@ -575,79 +571,86 @@ class TestApiSleepHistory:
         response = client.get("/api/sleep/history")
         assert response.status_code == 200
         data = response.json()
-        assert data["sessions"][0]["timelapse_available"] is True
-        assert data["sessions"][1]["timelapse_available"] is False
+        assert data["daily_timelapse_available"] is True
 
-
-class TestApiSleepTimelapse:
-    """Tests for GET /api/sleep/sessions/{index}/timelapse endpoint."""
-
-    def test_timelapse_no_tracker(self) -> None:
-        """Returns 404 when no sleep tracker configured."""
-        client, _, _ = _make_app()
-        response = client.get("/api/sleep/sessions/0/timelapse")
-        assert response.status_code == 404
-
-    def test_timelapse_not_available(self) -> None:
-        """Returns 404 when session has no timelapse."""
+    def test_sleep_history_daily_timelapse_not_available(self) -> None:
+        """GET /api/sleep/history returns false when no daily timelapse."""
         from datetime import UTC, datetime
 
         from src.core.sleep_session import SleepSession
 
         state = MonitoringState()
         runtime_config = RuntimeConfig()
-        session = SleepSession(
-            start_time=datetime(2025, 6, 1, 22, 0, 0, tzinfo=UTC),
-            end_time=datetime(2025, 6, 2, 0, 0, 0, tzinfo=UTC),
-        )
+        sessions = [
+            SleepSession(
+                start_time=datetime(2025, 6, 1, 22, 0, 0, tzinfo=UTC),
+                end_time=datetime(2025, 6, 2, 0, 0, 0, tzinfo=UTC),
+            ),
+        ]
         tracker_mock = MagicMock()
-        tracker_mock.get_sessions.return_value = [session]
+        tracker_mock.get_sessions.return_value = sessions
+        tracker_mock.get_daily_timelapse.return_value = None
         app = create_app(
             state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
         )
         client = TestClient(app)
-        response = client.get("/api/sleep/sessions/0/timelapse")
+        response = client.get("/api/sleep/history")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["daily_timelapse_available"] is False
+
+
+class TestApiSleepTimelapse:
+    """Tests for GET /api/sleep/timelapse/{date_str} endpoint."""
+
+    def test_timelapse_no_tracker(self) -> None:
+        """Returns 404 when no sleep tracker configured."""
+        client, _, _ = _make_app()
+        response = client.get("/api/sleep/timelapse/2025-06-01")
+        assert response.status_code == 404
+
+    def test_timelapse_not_available(self) -> None:
+        """Returns 404 when no daily timelapse exists for the date."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        tracker_mock = MagicMock()
+        tracker_mock.get_daily_timelapse.return_value = None
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/timelapse/2025-06-01")
         assert response.status_code == 404
 
     def test_timelapse_served(self, tmp_path: Path) -> None:
-        """Returns 200 with GIF content when timelapse exists."""
-        from datetime import UTC, datetime
-
+        """Returns 200 with GIF content when daily timelapse exists."""
         from PIL import Image
 
-        from src.core.sleep_session import SleepSession
-
-        gif_path = str(tmp_path / "timelapse.gif")
+        gif_path = str(tmp_path / "20250601_daily_timelapse.gif")
         img1 = Image.new("RGB", (100, 80), "red")
         img2 = Image.new("RGB", (100, 80), "blue")
         img1.save(gif_path, save_all=True, append_images=[img2], duration=500, loop=0)
 
         state = MonitoringState()
         runtime_config = RuntimeConfig()
-        session = SleepSession(
-            start_time=datetime(2025, 6, 1, 22, 0, 0, tzinfo=UTC),
-            end_time=datetime(2025, 6, 2, 0, 0, 0, tzinfo=UTC),
-            timelapse_path=gif_path,
-        )
         tracker_mock = MagicMock()
-        tracker_mock.get_sessions.return_value = [session]
+        tracker_mock.get_daily_timelapse.return_value = gif_path
         app = create_app(
             state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
         )
         client = TestClient(app)
-        response = client.get("/api/sleep/sessions/0/timelapse")
+        response = client.get("/api/sleep/timelapse/2025-06-01")
         assert response.status_code == 200
         assert response.headers["content-type"] == "image/gif"
 
-    def test_timelapse_invalid_index(self) -> None:
-        """Returns 404 for out-of-range index."""
+    def test_timelapse_invalid_date(self) -> None:
+        """Returns 400 for invalid date format."""
         state = MonitoringState()
         runtime_config = RuntimeConfig()
         tracker_mock = MagicMock()
-        tracker_mock.get_sessions.return_value = []
         app = create_app(
             state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
         )
         client = TestClient(app)
-        response = client.get("/api/sleep/sessions/5/timelapse")
-        assert response.status_code == 404
+        response = client.get("/api/sleep/timelapse/not-a-date")
+        assert response.status_code == 400

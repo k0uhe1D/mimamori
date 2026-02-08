@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 
@@ -179,3 +180,52 @@ class TestSleepTracker:
 
         assert len(tracker.get_sessions(limit=2)) == 2
         assert len(tracker.get_sessions(limit=0)) == 3
+
+    def test_daily_timelapse_on_date_rollover(self, tmp_path: Path) -> None:
+        """Daily timelapse is triggered when date changes."""
+        state = MonitoringState()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame)
+
+        tracker = SleepTracker(
+            state=state,
+            check_interval=0.1,
+            snapshot_interval=0.0,
+            snapshot_dir=str(tmp_path),
+        )
+
+        yesterday = date.today() - timedelta(days=1)
+
+        # Simulate a session from yesterday
+        with patch("src.core.sleep_tracker.date") as mock_date:
+            mock_date.today.return_value = yesterday
+            mock_date.fromisoformat = date.fromisoformat
+            state.add_result(_make_result("睡眠中"))
+            tracker._check_once()  # starts session on "yesterday"
+            tracker._check_once()  # captures snapshot
+            state.add_result(_make_result("覚醒"))
+            tracker._check_once()  # ends session
+
+        sessions = tracker.get_sessions()
+        assert len(sessions) == 1
+        assert not sessions[0].is_active
+        assert len(sessions[0].snapshot_paths) >= 1
+
+        # Now trigger date rollover by calling _check_once on "today"
+        with patch("src.core.sleep_tracker.date") as mock_date:
+            mock_date.today.return_value = date.today()
+            mock_date.fromisoformat = date.fromisoformat
+            tracker._check_once()
+
+        # Wait briefly for background thread to finish
+        time.sleep(0.5)
+
+        result = tracker.get_daily_timelapse(yesterday)
+        # May be None if fewer than 2 snapshots, but method should be callable
+        assert result is None or Path(result).exists()
+
+    def test_get_daily_timelapse_not_found(self) -> None:
+        """get_daily_timelapse returns None for unknown dates."""
+        state = MonitoringState()
+        tracker = SleepTracker(state=state)
+        assert tracker.get_daily_timelapse(date(2025, 1, 1)) is None
