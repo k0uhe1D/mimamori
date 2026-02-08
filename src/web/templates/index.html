@@ -241,8 +241,42 @@
     .toast.success { background: var(--success); }
     .toast.error { background: var(--danger); }
     @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-    /* Desktop */
-    @media (min-width: 768px) {
+    /* Desktop: single-screen layout without tabs */
+    @media (min-width: 1024px) {
+      body { padding-bottom: 0; overflow: hidden; }
+      .tab-bar { display: none; }
+      .tab-content { display: contents !important; }
+      .main {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: 1fr auto;
+        gap: 12px; padding: 12px;
+        max-width: none;
+        height: calc(100vh - 52px);
+        overflow: hidden;
+      }
+      .main > .tab-content { display: contents !important; }
+      /* Left column: video */
+      .video-container { grid-column: 1; grid-row: 1 / -1; display: flex; flex-direction: column; }
+      .video-container img { flex: 1; min-height: 0; aspect-ratio: auto; object-fit: contain; }
+      .cam-controls-container { display: none; }
+      /* Center column: analysis + history stacked */
+      .result-container { grid-column: 2; grid-row: 1; overflow-y: auto; }
+      .history-container { grid-column: 2; grid-row: 2; overflow-y: auto; max-height: 280px; }
+      /* Right column: sleep + settings stacked */
+      .sleep-container { grid-column: 3; grid-row: 1; overflow-y: auto; }
+      .settings-container { grid-column: 3; grid-row: 2; overflow-y: auto; max-height: 280px; }
+      .card { padding: 12px; }
+      .card h2 { margin-bottom: 8px; padding-bottom: 6px; font-size: 0.8em; }
+      .result-item { padding: 5px 0; }
+      .timeline-bar { height: 24px; }
+      .form-group { margin-bottom: 10px; }
+      .form-group input, .form-group select { min-height: 36px; padding: 6px 10px; font-size: 0.9em; }
+      .form-row-inline .form-group { max-width: 300px; }
+      .toast-container { bottom: 20px; }
+    }
+    /* Tablet: 2-column layout, still with tabs */
+    @media (min-width: 768px) and (max-width: 1023px) {
       .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; }
       .video-container { grid-column: 1 / 2; }
       .result-container { grid-column: 2 / 3; }
@@ -251,7 +285,6 @@
       .sleep-container { grid-column: 1 / -1; }
       .history-container, .settings-container { grid-column: 1 / -1; }
       .form-row-inline .form-group { max-width: 300px; }
-      .settings-container .card-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
     }
   </style>
 </head>
@@ -397,9 +430,11 @@
     <button onclick="switchTab('settings')"><span class="tab-icon">&#x2699;</span>設定</button>
   </nav>
   <script>
-    /* -- Tab navigation -- */
+    /* -- Tab navigation (mobile only) -- */
     var currentTab = 'monitor';
+    function isDesktop() { return window.innerWidth >= 1024; }
     function switchTab(tab) {
+      if (isDesktop()) return;
       currentTab = tab;
       document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
       document.querySelectorAll('.tab-bar button').forEach(function(el) { el.classList.remove('active'); });
@@ -414,6 +449,7 @@
       if (tab === 'settings') { loadSettings(); }
     }
     (function() {
+      if (isDesktop()) return;
       var h = location.hash.replace('#', '');
       if (h === 'sleep' || h === 'settings') switchTab(h);
     })();
@@ -672,9 +708,9 @@
     }
     loadSettings(); fetchStatus(); fetchHistory(); fetchSleepStatus(); fetchSleepHistory(); loadCamControls();
     setInterval(fetchStatus, 5000);
-    setInterval(function() { if (currentTab === 'monitor') fetchHistory(); }, 10000);
-    setInterval(function() { if (currentTab === 'sleep') fetchSleepStatus(); }, 10000);
-    setInterval(function() { if (currentTab === 'sleep') fetchSleepHistory(); }, 30000);
+    setInterval(function() { if (isDesktop() || currentTab === 'monitor') fetchHistory(); }, 10000);
+    setInterval(function() { if (isDesktop() || currentTab === 'sleep') fetchSleepStatus(); }, 10000);
+    setInterval(function() { if (isDesktop() || currentTab === 'sleep') fetchSleepHistory(); }, 30000);
   </script>
 </body>
 </html>
