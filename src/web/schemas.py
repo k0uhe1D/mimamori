@@ -117,6 +117,14 @@ class RecordingControlResponse(BaseModel):
     message: str = ""
 
 
+class ControlStatusResponse(BaseModel):
+    """Response for GET /api/control/status."""
+
+    stream_running: bool
+    analysis_paused: bool
+    recording: bool
+
+
 class IPWebcamControlRequest(BaseModel):
     """Request for POST /api/ipwebcam/control."""
 

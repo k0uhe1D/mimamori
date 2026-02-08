@@ -737,8 +737,25 @@
         el.innerHTML = h;
       } catch (e) { /* ignore */ }
     }
-    loadSettings(); fetchStatus(); fetchHistory(); fetchSleepStatus(); fetchSleepHistory(); loadCamControls();
+    function applyControlState(d) {
+      streamRunning = d.stream_running;
+      analysisRunning = !d.analysis_paused;
+      isRecording = d.recording;
+      var sb = document.getElementById('streamToggleBtn');
+      if (sb) { sb.textContent = streamRunning ? '映像停止' : '映像再開'; sb.className = streamRunning ? 'btn btn-danger btn-sm' : 'btn btn-success btn-sm'; }
+      var ab = document.getElementById('analysisToggleBtn');
+      if (ab) { ab.textContent = analysisRunning ? '解析停止' : '解析再開'; ab.className = analysisRunning ? 'btn btn-danger btn-sm' : 'btn btn-success btn-sm'; }
+      var rb = document.getElementById('recordToggleBtn');
+      if (rb) { rb.textContent = isRecording ? '録画停止' : '録画開始'; rb.className = isRecording ? 'btn btn-danger btn-sm' : 'btn btn-warning btn-sm'; }
+      var badge = document.getElementById('recBadge');
+      if (badge) { badge.style.display = isRecording ? 'inline' : 'none'; }
+    }
+    async function syncControlState() {
+      try { var r = await fetch('/api/control/status'), d = await r.json(); applyControlState(d); } catch (e) { /* ignore */ }
+    }
+    loadSettings(); fetchStatus(); fetchHistory(); fetchSleepStatus(); fetchSleepHistory(); loadCamControls(); syncControlState();
     setInterval(fetchStatus, 5000);
+    setInterval(syncControlState, 5000);
     setInterval(function() { if (isDesktop() || currentTab === 'monitor') fetchHistory(); }, 10000);
     setInterval(function() { if (isDesktop() || currentTab === 'sleep') fetchSleepStatus(); }, 10000);
     setInterval(function() { if (isDesktop() || currentTab === 'sleep') fetchSleepHistory(); }, 30000);
