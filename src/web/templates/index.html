@@ -81,7 +81,7 @@
       border-bottom: 2px solid var(--border); padding-bottom: 8px;
     }
     /* Video */
-    .video-container img { width: 100%; border-radius: var(--radius-sm); background: #111; aspect-ratio: 4/3; object-fit: cover; }
+    .video-container img { width: 100%; border-radius: var(--radius-sm); background: #111; aspect-ratio: 3/4; object-fit: cover; }
     .controls-bar { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
     /* Results */
     .result-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
@@ -260,9 +260,9 @@
         overflow: hidden;
       }
       .main > .tab-content { display: contents !important; }
-      /* Left column: video spanning full height */
-      .video-container { grid-column: 1; grid-row: 1 / -1; display: flex; flex-direction: column; }
-      .video-container img { flex: 1; min-height: 0; aspect-ratio: auto; object-fit: contain; background: #000; }
+      /* Left column: video spanning full height (portrait) */
+      .video-container { grid-column: 1; grid-row: 1 / -1; display: flex; flex-direction: column; overflow: hidden; }
+      .video-container img { flex: 1; min-height: 0; aspect-ratio: 3/4; object-fit: cover; border-radius: var(--radius-sm); }
       .cam-controls-container { display: none; }
       /* Center column: analysis + history stacked */
       .result-container { grid-column: 2; grid-row: 1; overflow-y: auto; }
