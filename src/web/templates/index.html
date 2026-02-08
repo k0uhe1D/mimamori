@@ -243,37 +243,67 @@
     @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
     /* Desktop: single-screen layout without tabs */
     @media (min-width: 1024px) {
-      body { padding-bottom: 0; overflow: hidden; }
+      body { padding-bottom: 0; overflow: hidden; font-size: 18px; }
       .tab-bar { display: none; }
       .tab-content { display: contents !important; }
+      .header { padding: 10px 20px; }
+      .header h1 { font-size: 1.3em; }
+      .header-right { font-size: 1.05em; }
+      .alert-banner { font-size: 1.1em; padding: 10px 20px; }
       .main {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 2fr 3fr 3fr;
         grid-template-rows: 1fr auto;
-        gap: 12px; padding: 12px;
+        gap: 14px; padding: 14px;
         max-width: none;
-        height: calc(100vh - 52px);
+        height: calc(100vh - 48px);
         overflow: hidden;
       }
       .main > .tab-content { display: contents !important; }
-      /* Left column: video */
+      /* Left column: video spanning full height */
       .video-container { grid-column: 1; grid-row: 1 / -1; display: flex; flex-direction: column; }
-      .video-container img { flex: 1; min-height: 0; aspect-ratio: auto; object-fit: contain; }
+      .video-container img { flex: 1; min-height: 0; aspect-ratio: auto; object-fit: contain; background: #000; }
       .cam-controls-container { display: none; }
       /* Center column: analysis + history stacked */
       .result-container { grid-column: 2; grid-row: 1; overflow-y: auto; }
-      .history-container { grid-column: 2; grid-row: 2; overflow-y: auto; max-height: 280px; }
+      .history-container { grid-column: 2; grid-row: 2; overflow-y: auto; }
       /* Right column: sleep + settings stacked */
       .sleep-container { grid-column: 3; grid-row: 1; overflow-y: auto; }
-      .settings-container { grid-column: 3; grid-row: 2; overflow-y: auto; max-height: 280px; }
-      .card { padding: 12px; }
-      .card h2 { margin-bottom: 8px; padding-bottom: 6px; font-size: 0.8em; }
-      .result-item { padding: 5px 0; }
-      .timeline-bar { height: 24px; }
-      .form-group { margin-bottom: 10px; }
-      .form-group input, .form-group select { min-height: 36px; padding: 6px 10px; font-size: 0.9em; }
+      .settings-container { grid-column: 3; grid-row: 2; overflow-y: auto; }
+      /* Card sizing */
+      .card { padding: 16px; }
+      .card h2 { margin-bottom: 10px; padding-bottom: 8px; font-size: 1em; letter-spacing: 1.5px; }
+      /* Analysis */
+      .result-item { padding: 8px 0; }
+      .result-label { font-size: 1.05em; }
+      .result-value { font-size: 1.05em; }
+      .confidence-badge { font-size: 0.95em; padding: 3px 12px; }
+      .action-tag { font-size: 0.95em; padding: 4px 12px; }
+      /* History */
+      .history-row { font-size: 1em; padding: 10px 12px; }
+      .history-row-time { font-size: 0.95em; }
+      .history-row-meta { font-size: 0.85em; }
+      .history-pager { font-size: 1em; }
+      /* Sleep timeline */
+      .timeline-bar { height: 32px; }
+      .timeline-header .timeline-date { font-size: 1.1em; }
+      .timeline-header .timeline-total { font-size: 1em; }
+      .timeline-labels { font-size: 0.85em; }
+      .timeline-summary { font-size: 0.9em; }
+      /* Settings */
+      .form-group label { font-size: 1em; }
+      .form-group input, .form-group select { min-height: 40px; padding: 8px 12px; font-size: 1em; }
       .form-row-inline .form-group { max-width: 300px; }
+      details summary { font-size: 1.1em; padding: 12px 0; }
+      .form-actions .btn { font-size: 1em; }
+      /* Buttons */
+      .btn { font-size: 1em; padding: 8px 16px; }
+      .btn-sm { font-size: 0.95em; }
+      .controls-bar { margin-top: 12px; }
+      /* Toast */
       .toast-container { bottom: 20px; }
+      .toast { font-size: 1.05em; }
+      .no-data { font-size: 1em; }
     }
     /* Tablet: 2-column layout, still with tabs */
     @media (min-width: 768px) and (max-width: 1023px) {
