@@ -14,6 +14,7 @@ from src.core.sleep_session import SleepSession
 
 if TYPE_CHECKING:
     from src.core.state import MonitoringState
+    from src.db.repository import Repository
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,7 @@ class SleepTracker:
         check_interval: float = _DEFAULT_CHECK_INTERVAL,
         snapshot_interval: float = _DEFAULT_SNAPSHOT_INTERVAL,
         snapshot_dir: str = _DEFAULT_SNAPSHOT_DIR,
+        repository: Repository | None = None,
     ) -> None:
         """Initialize sleep tracker.
 
@@ -97,6 +99,7 @@ class SleepTracker:
             check_interval: Seconds between state checks.
             snapshot_interval: Seconds between snapshot captures during sleep.
             snapshot_dir: Directory to save sleep snapshots.
+            repository: Optional SQLite repository for persistence.
         """
         self._state = state
         self._check_interval = check_interval
@@ -110,6 +113,8 @@ class SleepTracker:
         self._last_snapshot_time: datetime | None = None
         self._current_date: date | None = None
         self._daily_timelapses: dict[str, str] = {}
+        self._repository = repository
+        self._session_db_ids: dict[int, int] = {}  # id(session) → DB row id
 
     def start(self) -> None:
         """Start the sleep tracker daemon thread."""
@@ -212,6 +217,9 @@ class SleepTracker:
         session = SleepSession(start_time=datetime.now(tz=UTC))
         with self._lock:
             self._sessions.append(session)
+        if self._repository is not None:
+            db_id = self._repository.save_sleep_session(session)
+            self._session_db_ids[id(session)] = db_id
         self._last_snapshot_time = None
         logger.info("Sleep session started at %s", session.start_time.isoformat())
 
@@ -221,6 +229,10 @@ class SleepTracker:
             if self._sessions and self._sessions[-1].is_active:
                 self._sessions[-1].end_time = datetime.now(tz=UTC)
                 session = self._sessions[-1]
+        if self._repository is not None:
+            db_id = self._session_db_ids.get(id(session))
+            if db_id is not None:
+                self._repository.update_sleep_session(db_id, session)
         logger.info(
             "Sleep session ended: %.0f seconds",
             session.duration_seconds,
@@ -255,6 +267,8 @@ class SleepTracker:
                 if result is not None:
                     with self._lock:
                         self._daily_timelapses[date_str] = result
+                    if self._repository is not None:
+                        self._repository.save_daily_timelapse(date_str, result)
                     logger.info("Daily timelapse built for %s", date_str)
             except Exception:
                 logger.exception("Failed to build daily timelapse for %s", date_str)
@@ -273,6 +287,23 @@ class SleepTracker:
         """
         with self._lock:
             return self._daily_timelapses.get(target_date.isoformat())
+
+    def restore_from_repository(self) -> None:
+        """Restore sleep sessions and daily timelapses from the repository.
+
+        Loads persisted data into in-memory structures.
+        No-op if no repository is configured.
+        """
+        if self._repository is None:
+            return
+        pairs = self._repository.load_sleep_sessions()
+        with self._lock:
+            for db_id, session in pairs:
+                self._sessions.append(session)
+                self._session_db_ids[id(session)] = db_id
+        timelapses = self._repository.load_daily_timelapses()
+        with self._lock:
+            self._daily_timelapses.update(timelapses)
 
     def _maybe_capture_snapshot(self) -> None:
         """Capture a snapshot if enough time has passed since the last one.
@@ -300,5 +331,13 @@ class SleepTracker:
         with self._lock:
             if self._sessions and self._sessions[-1].is_active:
                 self._sessions[-1].snapshot_paths.append(filepath)
+                session = self._sessions[-1]
+            else:
+                session = None
+
+        if session is not None and self._repository is not None:
+            db_id = self._session_db_ids.get(id(session))
+            if db_id is not None:
+                self._repository.update_sleep_session(db_id, session)
 
         logger.debug("Sleep snapshot saved: %s", filepath)

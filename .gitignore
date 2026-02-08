@@ -36,3 +36,6 @@ logs/
 # Secrets
 secrets/
 sleep_snapshots
+
+# SQLite data
+data/

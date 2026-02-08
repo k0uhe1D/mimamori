@@ -20,6 +20,7 @@ from src.analyzer import AnalysisResult, analyze_frame, analyze_frame_gemini
 from src.capture import HTTPCamera, OpenCVCamera, RTSPCamera, encode_frame_to_base64
 from src.config import RuntimeConfig, Settings
 from src.core import AnalyzerWorker, FrameGrabber, MonitoringState, SleepTracker
+from src.db import Repository
 from src.recorder import VideoRecorder
 
 if TYPE_CHECKING:
@@ -89,8 +90,11 @@ def run_web(settings: Settings) -> int:
 
     from src.web.app import create_app
 
+    repository = Repository()
+    repository.initialize()
+
     camera = _create_camera(settings)
-    state = MonitoringState()
+    state = MonitoringState(repository=repository)
     runtime_config = RuntimeConfig(
         analysis_interval_seconds=settings.analysis_interval_seconds,
         camera_url=settings.camera_url,
@@ -129,7 +133,10 @@ def run_web(settings: Settings) -> int:
         analyze_fn=_runtime_call_analyzer,
     )
     recorder = VideoRecorder(state=state)
-    sleep_tracker = SleepTracker(state=state)
+    sleep_tracker = SleepTracker(state=state, repository=repository)
+
+    state.restore_from_repository()
+    sleep_tracker.restore_from_repository()
 
     def swap_camera_fn(url: str, device_index: int) -> None:
         """Create a new camera and swap the grabber to use it."""
@@ -171,6 +178,7 @@ def run_web(settings: Settings) -> int:
         worker.stop()
         grabber.stop()
         camera.release()
+        repository.close()
 
     return 0
 
