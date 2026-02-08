@@ -274,6 +274,45 @@ class TestApiCameraSwap:
         assert data["message"] == "Failed to swap camera"
 
 
+class TestApiControlStatus:
+    """Tests for GET /api/control/status endpoint."""
+
+    def test_control_status_defaults(self) -> None:
+        """GET /api/control/status returns defaults when no components."""
+        client, _, _ = _make_app()
+        response = client.get("/api/control/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["stream_running"] is True
+        assert data["analysis_paused"] is False
+        assert data["recording"] is False
+
+    def test_control_status_reflects_components(self) -> None:
+        """GET /api/control/status reflects actual component state."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        grabber_mock = MagicMock()
+        grabber_mock.running = False
+        worker_mock = MagicMock()
+        worker_mock.paused = True
+        recorder_mock = MagicMock()
+        recorder_mock.recording = True
+        app = create_app(
+            state=state,
+            runtime_config=runtime_config,
+            grabber=grabber_mock,
+            worker=worker_mock,
+            recorder=recorder_mock,
+        )
+        client = TestClient(app)
+        response = client.get("/api/control/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["stream_running"] is False
+        assert data["analysis_paused"] is True
+        assert data["recording"] is True
+
+
 class TestApiStreamControl:
     """Tests for POST /api/stream/stop and /api/stream/start endpoints."""
 

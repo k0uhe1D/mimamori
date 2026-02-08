@@ -25,6 +25,7 @@ from src.web.schemas import (
     AnalysisControlResponse,
     CameraSwapRequest,
     CameraSwapResponse,
+    ControlStatusResponse,
     HistoryItem,
     HistoryResponse,
     IPWebcamControlRequest,
@@ -220,6 +221,15 @@ def create_app(
             camera_url=url,
             camera_device_index=device_index,
             message="Camera swapped successfully",
+        )
+
+    @app.get("/api/control/status")
+    async def api_control_status() -> ControlStatusResponse:
+        """Get current control state for multi-client synchronization."""
+        return ControlStatusResponse(
+            stream_running=grabber.running if grabber is not None else True,
+            analysis_paused=worker.paused if worker is not None else False,
+            recording=recorder.recording if recorder is not None else False,
         )
 
     @app.post("/api/stream/stop")
