@@ -24,6 +24,17 @@ def _fake_analyze(_settings: Settings, _base64_image: str) -> AnalysisResult:
     )
 
 
+def _fake_analyze_awake(_settings: Settings, _base64_image: str) -> AnalysisResult:
+    """Fake analyzer function that returns awake state."""
+    return AnalysisResult.create_now(
+        posture="仰向け",
+        sleep_state="覚醒",
+        summary="テスト結果",
+        confidence="high",
+        raw_response="{}",
+    )
+
+
 def _error_analyze(_settings: Settings, _base64_image: str) -> AnalysisResult:
     """Fake analyzer that raises an exception."""
     msg = "LLM API error"
@@ -197,7 +208,7 @@ class TestAnalyzerWorker:
         def counting_analyze(_settings: Settings, _base64_image: str) -> AnalysisResult:
             nonlocal call_count
             call_count += 1
-            return _fake_analyze(_settings, _base64_image)
+            return _fake_analyze_awake(_settings, _base64_image)
 
         state = MonitoringState()
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -265,3 +276,119 @@ class TestAnalyzerWorker:
 
         config.max_skip_seconds = 0
         assert config.max_skip_seconds == 0
+
+    def test_sleep_state_reduces_api_calls(self) -> None:
+        """AnalyzerWorker uses longer interval when baby is sleeping."""
+        call_count = 0
+
+        def counting_sleep_analyze(
+            _settings: Settings, _base64_image: str
+        ) -> AnalysisResult:
+            nonlocal call_count
+            call_count += 1
+            return _fake_analyze(_settings, _base64_image)
+
+        state = MonitoringState()
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(
+            analysis_interval_seconds=1,
+            max_skip_seconds=0,
+        )
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=counting_sleep_analyze,
+        )
+
+        # Provide a frame, then change it each time to always trigger analysis
+        frame1 = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame1)
+        worker.start()
+        time.sleep(0.5)
+        # First analysis runs and returns "睡眠中"
+        assert call_count == 1
+        # Now update frame so it changes
+        frame2 = np.full((480, 640, 3), 100, dtype=np.uint8)
+        state.update_frame(frame2)
+        # During sleep, interval is 1s * 3 = 3s, so after 2s no new call
+        time.sleep(2.0)
+        assert call_count == 1  # Still 1, sleep interval hasn't elapsed
+        worker.stop()
+
+    def test_awake_state_uses_normal_interval(self) -> None:
+        """AnalyzerWorker uses normal interval when baby is awake."""
+        call_count = 0
+
+        def counting_awake_analyze(
+            _settings: Settings, _base64_image: str
+        ) -> AnalysisResult:
+            nonlocal call_count
+            call_count += 1
+            return _fake_analyze_awake(_settings, _base64_image)
+
+        state = MonitoringState()
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(
+            analysis_interval_seconds=1,
+            max_skip_seconds=0,
+        )
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=counting_awake_analyze,
+        )
+
+        frame1 = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame1)
+        worker.start()
+        time.sleep(0.5)
+        assert call_count == 1
+        # Change frame - awake state uses normal 1s interval
+        frame2 = np.full((480, 640, 3), 100, dtype=np.uint8)
+        state.update_frame(frame2)
+        time.sleep(1.5)
+        assert call_count >= 2  # Should have analyzed again within 1s
+        worker.stop()
+
+    def test_sleep_state_raises_diff_threshold(self) -> None:
+        """AnalyzerWorker uses higher diff threshold when sleeping."""
+        call_count = 0
+
+        def counting_sleep_analyze(
+            _settings: Settings, _base64_image: str
+        ) -> AnalysisResult:
+            nonlocal call_count
+            call_count += 1
+            return _fake_analyze(_settings, _base64_image)
+
+        state = MonitoringState()
+        settings = Settings(openai_api_key="test-key")
+        runtime_config = RuntimeConfig(
+            analysis_interval_seconds=1,
+            max_skip_seconds=0,
+        )
+
+        worker = AnalyzerWorker(
+            state=state,
+            settings=settings,
+            runtime_config=runtime_config,
+            analyze_fn=counting_sleep_analyze,
+            diff_threshold=5.0,
+        )
+
+        # Initial frame triggers first analysis (returns "睡眠中")
+        frame1 = np.zeros((480, 640, 3), dtype=np.uint8)
+        state.update_frame(frame1)
+        worker._analyze_once()
+        assert call_count == 1
+
+        # Small change (diff ~3.0) - below sleep threshold (10.0) but above
+        # normal threshold (5.0). Should be skipped during sleep.
+        frame2 = np.full((480, 640, 3), 8, dtype=np.uint8)
+        state.update_frame(frame2)
+        worker._analyze_once()
+        assert call_count == 1  # Skipped due to raised sleep threshold
