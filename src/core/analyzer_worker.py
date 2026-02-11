@@ -25,6 +25,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _DEFAULT_DIFF_THRESHOLD = 5.0
+_SLEEP_STATE = "睡眠中"
+_SLEEP_INTERVAL_MULTIPLIER = 3
+_SLEEP_DIFF_MULTIPLIER = 2.0
+_SLEEP_MAX_SKIP_MULTIPLIER = 2
 
 
 class AnalyzerWorker:
@@ -97,6 +101,15 @@ class AnalyzerWorker:
         """Check if the analyzer is currently paused."""
         return self._pause_event.is_set()
 
+    def _is_sleeping(self) -> bool:
+        """Check if the latest analysis indicates the baby is sleeping.
+
+        Returns:
+            True if the most recent result has sleep_state == "睡眠中".
+        """
+        result = self._state.get_latest_result()
+        return result is not None and result.sleep_state == _SLEEP_STATE
+
     def _run(self) -> None:
         """Analysis loop."""
         while not self._stop_event.is_set():
@@ -107,10 +120,15 @@ class AnalyzerWorker:
                     logger.exception("Analysis failed, will retry next interval")
 
             interval = self._runtime_config.analysis_interval_seconds
+            if self._is_sleeping():
+                interval *= _SLEEP_INTERVAL_MULTIPLIER
             self._stop_event.wait(timeout=interval)
 
     def _is_frame_changed(self, frame: npt.NDArray[np.uint8]) -> bool:
         """Check if the frame has changed significantly from the last analyzed frame.
+
+        Uses a higher threshold during sleep to ignore minor movements
+        like breathing.
 
         Args:
             frame: Current frame to compare.
@@ -124,17 +142,22 @@ class AnalyzerWorker:
             return True
         diff = cv2.absdiff(frame, self._last_analyzed_frame)
         mean_diff: float = float(np.mean(diff.astype(np.float64)))
-        if mean_diff < self._diff_threshold:
+        threshold = self._diff_threshold
+        if self._is_sleeping():
+            threshold *= _SLEEP_DIFF_MULTIPLIER
+        if mean_diff < threshold:
             logger.debug(
                 "Frame unchanged (diff=%.2f < threshold=%.2f), skipping",
                 mean_diff,
-                self._diff_threshold,
+                threshold,
             )
             return False
         return True
 
     def _should_force_analysis(self) -> bool:
         """Check if analysis should be forced due to elapsed time.
+
+        Uses a longer timeout during sleep to reduce unnecessary API calls.
 
         Returns:
             True if max_skip_seconds has elapsed since the last analysis.
@@ -144,6 +167,8 @@ class AnalyzerWorker:
         max_skip = self._runtime_config.max_skip_seconds
         if max_skip <= 0:
             return False
+        if self._is_sleeping():
+            max_skip *= _SLEEP_MAX_SKIP_MULTIPLIER
         return time.monotonic() - self._last_analysis_time >= max_skip
 
     def _analyze_once(self) -> None:

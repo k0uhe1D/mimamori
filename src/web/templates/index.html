@@ -62,10 +62,12 @@
     @keyframes recBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     /* Alert */
     .alert-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
       background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%);
-      color: #fff; padding: 12px 16px; display: none;
-      font-weight: 600; font-size: 0.95em;
+      color: #fff; padding: 10px 16px; display: none;
+      font-weight: 600; font-size: 0.9em;
       box-shadow: 0 2px 8px rgba(231,76,60,0.3);
+      transition: opacity 0.3s ease;
     }
     /* Main layout */
     .main { display: flex; flex-direction: column; gap: 12px; padding: 12px; max-width: 1200px; margin: 0 auto; }
@@ -158,12 +160,24 @@
       display: grid; grid-template-columns: auto 1fr auto;
       gap: 8px; align-items: center; padding: 8px 10px;
       background: var(--bg); border-radius: var(--radius-sm); font-size: 0.85em;
-      border-left: 3px solid var(--accent);
+      border-left: 3px solid var(--accent); cursor: pointer;
+      transition: background 0.15s;
     }
+    .history-row:hover { background: var(--border); }
     .history-row.has-anomaly { border-left-color: var(--danger); background: #fef9f9; }
+    .history-row.has-anomaly:hover { background: #fde8e8; }
     .history-row-time { font-weight: 600; color: var(--text-muted); font-size: 0.8em; white-space: nowrap; }
     .history-row-body { min-width: 0; }
     .history-row-summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-row-detail {
+      display: none; grid-column: 1 / -1; padding: 8px 10px 4px;
+      border-top: 1px solid var(--border); font-size: 0.95em; line-height: 1.6;
+    }
+    .history-row.expanded { grid-template-rows: auto auto; }
+    .history-row.expanded .history-row-detail { display: block; }
+    .history-row.expanded .history-row-summary { white-space: normal; overflow: visible; }
+    .history-row-detail-item { margin-bottom: 4px; }
+    .history-row-detail-label { font-weight: 600; color: var(--text-muted); margin-right: 6px; }
     .history-row-meta { font-size: 0.75em; color: var(--text-light); }
     .history-pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 8px; font-size: 0.85em; }
     .history-pager button { min-height: 36px; min-width: 36px; }
@@ -250,7 +264,7 @@
       .header { padding: 10px 20px; }
       .header h1 { font-size: 1.3em; }
       .header-right { font-size: 1.05em; }
-      .alert-banner { font-size: 1.1em; padding: 10px 20px; }
+      .alert-banner { font-size: 1em; padding: 8px 20px; }
       .main {
         display: grid;
         grid-template-columns: 2fr 3fr 3fr;
@@ -284,6 +298,8 @@
       .history-row { font-size: 1em; padding: 10px 12px; }
       .history-row-time { font-size: 0.95em; }
       .history-row-meta { font-size: 0.85em; }
+      .history-row-detail { font-size: 0.95em; }
+      .history-row-detail .action-tag { font-size: 0.9em; }
       .history-pager { font-size: 1em; }
       /* Sleep timeline */
       .timeline-bar { height: 32px; }
@@ -332,7 +348,7 @@
     <div class="tab-content active" id="tabMonitor">
     <div class="card video-container">
       <h2>Live</h2>
-      <div class="video-frame"><img src="/stream" alt="Live Stream" id="liveStream"></div>
+      <div class="video-frame"><img src="/stream" alt="Live Stream" id="liveStream" onerror="retryStream(this)"></div>
       <div class="controls-bar">
         <button class="btn btn-danger btn-sm" id="streamToggleBtn" onclick="toggleStream()">映像停止</button>
         <button class="btn btn-danger btn-sm" id="analysisToggleBtn" onclick="toggleAnalysis()">解析停止</button>
@@ -526,13 +542,17 @@
       var cls = c === 'high' ? 'confidence-high' : c === 'medium' ? 'confidence-medium' : 'confidence-low';
       return '<span class="confidence-badge ' + cls + '">' + escapeHtml(c) + '</span>';
     }
-    function updateStreamUrl(cameraUrl) {
+    var _streamRetryTimer = null;
+    function retryStream(img) {
+      if (_streamRetryTimer) return;
+      _streamRetryTimer = setTimeout(function() {
+        _streamRetryTimer = null;
+        img.src = '/stream?t=' + Date.now();
+      }, 2000);
+    }
+    function updateStreamUrl() {
       var img = document.getElementById('liveStream');
-      if (cameraUrl && (cameraUrl.startsWith('http://') || cameraUrl.startsWith('https://'))) {
-        img.src = cameraUrl.replace(/\/+$/, '') + '/video';
-      } else {
-        img.src = '/stream';
-      }
+      img.src = '/stream';
     }
     async function loadSettings() {
       try {
@@ -549,7 +569,7 @@
           if (sel.options[i].value === 'openai') sel.options[i].disabled = !d.openai_available;
           if (sel.options[i].value === 'gemini') sel.options[i].disabled = !d.gemini_available;
         }
-        updateStreamUrl(d.camera_url);
+        updateStreamUrl();
       } catch (e) { /* ignore */ }
     }
     async function fetchStatus() {
@@ -570,7 +590,9 @@
         if (d.anomalies.length > 0) {
           h += '<div class="result-item"><span class="result-label">異常</span><span class="result-value anomaly">' + d.anomalies.map(escapeHtml).join(', ') + '</span></div>';
           banner.textContent = '\u26A0 異常検知: ' + d.anomalies.join(', ');
-          banner.style.display = 'block';
+          banner.style.display = 'block'; banner.style.opacity = '1';
+          clearTimeout(banner._hideTimer);
+          banner._hideTimer = setTimeout(function() { banner.style.opacity = '0'; setTimeout(function() { banner.style.display = 'none'; }, 300); }, 10000);
         } else {
           h += '<div class="result-item"><span class="result-label">異常</span><span class="result-value" style="color:var(--success);">なし</span></div>';
           banner.style.display = 'none';
@@ -594,16 +616,27 @@
       el.innerHTML = slice.map(function(item) {
         var cls = item.anomalies.length > 0 ? 'history-row has-anomaly' : 'history-row';
         var anomaly = item.anomalies.length > 0 ? ' <span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span>' : '';
-        return '<div class="' + cls + '"><span class="history-row-time">' + formatTime(item.timestamp) + '</span>' +
+        var detail = '<div class="history-row-detail">';
+        detail += '<div class="history-row-detail-item"><span class="history-row-detail-label">姿勢:</span>' + escapeHtml(item.posture) + '</div>';
+        detail += '<div class="history-row-detail-item"><span class="history-row-detail-label">睡眠:</span>' + escapeHtml(item.sleep_state) + '</div>';
+        if (item.actions && item.actions.length > 0) {
+          detail += '<div class="history-row-detail-item"><span class="history-row-detail-label">動作:</span>' + item.actions.map(function(a) { return '<span class="action-tag">' + escapeHtml(a) + '</span>'; }).join(' ') + '</div>';
+        }
+        if (item.anomalies.length > 0) {
+          detail += '<div class="history-row-detail-item"><span class="history-row-detail-label">異常:</span><span class="anomaly">' + item.anomalies.map(escapeHtml).join(', ') + '</span></div>';
+        }
+        detail += '</div>';
+        return '<div class="' + cls + '" onclick="toggleHistoryDetail(this)"><span class="history-row-time">' + formatTime(item.timestamp) + '</span>' +
           '<div class="history-row-body"><div class="history-row-summary">' + escapeHtml(item.summary) + anomaly + '</div>' +
           '<div class="history-row-meta">' + escapeHtml(item.posture) + ' / ' + escapeHtml(item.sleep_state) + '</div></div>' +
-          confidenceBadge(item.confidence) + '</div>';
+          confidenceBadge(item.confidence) + detail + '</div>';
       }).join('');
       if (pages > 1) { pager.style.display = 'flex'; document.getElementById('historyPageInfo').textContent = (historyPage + 1) + ' / ' + pages; }
       else { pager.style.display = 'none'; }
     }
     function historyPrev() { if (historyPage > 0) { historyPage--; renderHistory(); } }
     function historyNext() { var pages = Math.ceil(historyItems.length / HISTORY_PER_PAGE); if (historyPage < pages - 1) { historyPage++; renderHistory(); } }
+    function toggleHistoryDetail(el) { el.classList.toggle('expanded'); }
     async function saveAnalysisSettings() {
       var body = {}, interval = parseInt(document.getElementById('intervalInput').value);
       if (!isNaN(interval) && interval >= 1) body.analysis_interval_seconds = interval;
@@ -632,12 +665,12 @@
     async function swapCameraUrl() {
       var url = document.getElementById('cameraUrlInput').value;
       if (!url) return;
-      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) }), d = await r.json(); if (d.ok) { updateStreamUrl(d.camera_url); showToast('カメラを切り替えました'); } else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
+      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_url: url }) }), d = await r.json(); if (d.ok) { updateStreamUrl(); showToast('カメラを切り替えました'); } else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function swapCameraDevice() {
       var idx = parseInt(document.getElementById('deviceIndexInput').value);
       if (isNaN(idx) || idx < 0) return;
-      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) }), d = await r.json(); if (d.ok) { updateStreamUrl(''); showToast('カメラを切り替えました'); } else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
+      try { var r = await fetch('/api/camera/swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ camera_device_index: idx }) }), d = await r.json(); if (d.ok) { updateStreamUrl(); showToast('カメラを切り替えました'); } else showToast(d.message, 'error'); } catch (e) { showToast('カメラ切り替えに失敗しました', 'error'); }
     }
     async function toggleStream() {
       try { var r = await fetch(streamRunning ? '/api/stream/stop' : '/api/stream/start', { method: 'POST' }), d = await r.json();
