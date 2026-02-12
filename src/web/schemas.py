@@ -138,6 +138,32 @@ class IPWebcamControlResponse(BaseModel):
     message: str = ""
 
 
+class SleepSessionDetailItem(BaseModel):
+    """Sleep session entry with snapshot filenames for date-specific queries."""
+
+    start_time: datetime
+    end_time: datetime | None = None
+    duration_seconds: float
+    is_active: bool
+    snapshot_count: int
+    snapshot_filenames: list[str]
+
+
+class SleepHistoryByDateResponse(BaseModel):
+    """Response for GET /api/sleep/history/{date_str}."""
+
+    date_str: str
+    sessions: list[SleepSessionDetailItem]
+    total_sleep_seconds: float
+    daily_timelapse_available: bool = False
+
+
+class AnalysisRangeResponse(BaseModel):
+    """Response for GET /api/analysis/range."""
+
+    items: list[HistoryItem]
+
+
 class SleepSessionItem(BaseModel):
     """Single sleep session entry."""
 

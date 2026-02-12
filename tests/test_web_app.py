@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path  # noqa: TC003
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
@@ -637,6 +637,159 @@ class TestApiSleepHistory:
         assert response.status_code == 200
         data = response.json()
         assert data["daily_timelapse_available"] is False
+
+
+class TestApiSleepHistoryByDate:
+    """Tests for GET /api/sleep/history/{date_str} endpoint."""
+
+    def test_no_tracker(self) -> None:
+        """Returns 404 when no sleep tracker configured."""
+        client, _, _ = _make_app()
+        response = client.get("/api/sleep/history/2025-06-01")
+        assert response.status_code == 404
+
+    def test_invalid_date(self) -> None:
+        """Returns 400 for invalid date format."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        tracker_mock = MagicMock()
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/history/not-a-date")
+        assert response.status_code == 400
+
+    def test_returns_sessions_for_date(self) -> None:
+        """Returns sessions with snapshot filenames for a given date."""
+        from datetime import UTC, datetime
+
+        from src.core.sleep_session import SleepSession
+
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        sessions = [
+            SleepSession(
+                start_time=datetime(2025, 6, 1, 22, 0, 0, tzinfo=UTC),
+                end_time=datetime(2025, 6, 2, 2, 0, 0, tzinfo=UTC),
+                snapshot_paths=["/tmp/snapshots/20250601_2200.jpg"],
+            ),
+        ]
+        tracker_mock = MagicMock()
+        tracker_mock.get_sessions_by_date.return_value = sessions
+        tracker_mock.get_daily_timelapse.return_value = None
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/history/2025-06-01")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["date_str"] == "2025-06-01"
+        assert len(data["sessions"]) == 1
+        assert data["sessions"][0]["snapshot_filenames"] == ["20250601_2200.jpg"]
+        assert data["total_sleep_seconds"] > 0
+
+
+class TestApiSleepSnapshot:
+    """Tests for GET /api/sleep/snapshot/{filename} endpoint."""
+
+    def test_path_traversal_blocked(self) -> None:
+        """Path traversal attempts should be blocked with 403."""
+        from src.web.app import create_app
+
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        tracker_mock = MagicMock()
+        tracker_mock._snapshot_dir = Path("/tmp/snapshots")
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        # Backslash in filename
+        response = client.get("/api/sleep/snapshot/..\\etc\\passwd")
+        assert response.status_code == 403
+
+    def test_no_tracker(self) -> None:
+        """Returns 404 when no sleep tracker configured."""
+        client, _, _ = _make_app()
+        response = client.get("/api/sleep/snapshot/test.jpg")
+        assert response.status_code == 404
+
+    def test_file_not_found(self) -> None:
+        """Returns 404 when snapshot file does not exist."""
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        tracker_mock = MagicMock()
+        tracker_mock._snapshot_dir = Path("/nonexistent")
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/snapshot/missing.jpg")
+        assert response.status_code == 404
+
+    def test_serves_snapshot(self, tmp_path: Path) -> None:
+        """Returns 200 with JPEG content when file exists."""
+        snapshot_file = tmp_path / "test_snap.jpg"
+        snapshot_file.write_bytes(b"\xff\xd8\xff\xe0fake-jpeg")
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        tracker_mock = MagicMock()
+        tracker_mock._snapshot_dir = tmp_path
+        app = create_app(
+            state=state, runtime_config=runtime_config, sleep_tracker=tracker_mock
+        )
+        client = TestClient(app)
+        response = client.get("/api/sleep/snapshot/test_snap.jpg")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/jpeg"
+
+
+class TestApiAnalysisRange:
+    """Tests for GET /api/analysis/range endpoint."""
+
+    def test_no_repository(self) -> None:
+        """Returns empty items when no repository configured."""
+        client, _, _ = _make_app()
+        response = client.get(
+            "/api/analysis/range?start=2025-01-15T00:00:00&end=2025-01-16T00:00:00"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["items"] == []
+
+    def test_returns_results_in_range(self) -> None:
+        """Returns analysis results from repository within the range."""
+        from datetime import UTC, datetime
+
+        from src.analyzer.models import AnalysisResult
+        from src.db.repository import Repository
+
+        state = MonitoringState()
+        runtime_config = RuntimeConfig()
+        repo_mock = MagicMock(spec=Repository)
+        repo_mock.load_analysis_results_by_range.return_value = [
+            AnalysisResult(
+                timestamp=datetime(2025, 6, 1, 10, 0, 0, tzinfo=UTC),
+                posture="仰向け",
+                sleep_state="覚醒",
+                summary="正常",
+                confidence="high",
+                raw_response="raw",
+            ),
+        ]
+        app = create_app(
+            state=state, runtime_config=runtime_config, repository=repo_mock
+        )
+        client = TestClient(app)
+        response = client.get(
+            "/api/analysis/range?start=2025-06-01T00:00:00&end=2025-06-02T00:00:00"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) == 1
+        assert data["items"][0]["posture"] == "仰向け"
 
 
 class TestApiSleepTimelapse:

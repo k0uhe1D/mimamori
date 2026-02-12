@@ -148,6 +148,48 @@ class Repository:
             )
         return results
 
+    def load_analysis_results_by_range(
+        self, start_iso: str, end_iso: str, limit: int = 500
+    ) -> list[AnalysisResult]:
+        """Load analysis results within a time range.
+
+        Args:
+            start_iso: Start timestamp (inclusive) in ISO format.
+            end_iso: End timestamp (exclusive) in ISO format.
+            limit: Maximum number of results to return.
+
+        Returns:
+            List of AnalysisResult in chronological order (oldest first).
+        """
+        from src.analyzer.models import AnalysisResult
+
+        with self._lock:
+            assert self._conn is not None
+            rows = self._conn.execute(
+                "SELECT timestamp, posture, sleep_state, summary, confidence, "
+                "raw_response, anomalies, actions "
+                "FROM analysis_results "
+                "WHERE timestamp >= ? AND timestamp < ? "
+                "ORDER BY timestamp ASC LIMIT ?",
+                (start_iso, end_iso, limit),
+            ).fetchall()
+
+        results: list[AnalysisResult] = []
+        for row in rows:
+            results.append(
+                AnalysisResult(
+                    timestamp=datetime.fromisoformat(row[0]).replace(tzinfo=UTC),
+                    posture=row[1],
+                    sleep_state=row[2],
+                    summary=row[3],
+                    confidence=row[4],
+                    raw_response=row[5],
+                    anomalies=json.loads(row[6]),
+                    actions=json.loads(row[7]),
+                )
+            )
+        return results
+
     # ------------------------------------------------------------------
     # Sleep Sessions
     # ------------------------------------------------------------------
@@ -194,6 +236,52 @@ class Repository:
                 ),
             )
             self._conn.commit()
+
+    def load_sleep_sessions_by_date(
+        self, date_str: str
+    ) -> list[tuple[int, SleepSession]]:
+        """Load sleep sessions that overlap with a given date.
+
+        Includes sessions that started before the date ends AND
+        ended after the date starts (or are still active).
+
+        Args:
+            date_str: ISO date string (e.g. "2025-01-15").
+
+        Returns:
+            List of (db_id, SleepSession) in chronological order.
+        """
+        from src.core.sleep_session import SleepSession
+
+        day_start = f"{date_str}T00:00:00"
+        day_end = f"{date_str}T23:59:59"
+
+        with self._lock:
+            assert self._conn is not None
+            rows = self._conn.execute(
+                "SELECT id, start_time, end_time, snapshot_paths "
+                "FROM sleep_sessions "
+                "WHERE start_time <= ? AND (end_time IS NULL OR end_time >= ?) "
+                "ORDER BY start_time ASC",
+                (day_end, day_start),
+            ).fetchall()
+
+        sessions: list[tuple[int, SleepSession]] = []
+        for row in rows:
+            end_time = (
+                datetime.fromisoformat(row[2]).replace(tzinfo=UTC) if row[2] else None
+            )
+            sessions.append(
+                (
+                    row[0],
+                    SleepSession(
+                        start_time=datetime.fromisoformat(row[1]).replace(tzinfo=UTC),
+                        end_time=end_time,
+                        snapshot_paths=json.loads(row[3]),
+                    ),
+                )
+            )
+        return sessions
 
     def load_sleep_sessions(self) -> list[tuple[int, SleepSession]]:
         """Load all sleep sessions from the database.

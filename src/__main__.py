@@ -166,6 +166,7 @@ def run_web(settings: Settings) -> int:
         worker=worker,
         recorder=recorder,
         sleep_tracker=sleep_tracker,
+        repository=repository,
     )
 
     try:

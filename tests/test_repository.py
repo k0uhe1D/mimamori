@@ -168,6 +168,90 @@ class TestSleepSessions:
         assert pairs[1][1].start_time == t2
 
 
+class TestSleepSessionsByDate:
+    """Tests for date-filtered sleep session queries."""
+
+    def test_sessions_on_single_date(self, repo: Repository) -> None:
+        """Sessions that fall within a date should be returned."""
+        session = SleepSession(
+            start_time=datetime(2025, 1, 15, 22, 0, 0, tzinfo=UTC),
+            end_time=datetime(2025, 1, 16, 2, 0, 0, tzinfo=UTC),
+        )
+        repo.save_sleep_session(session)
+        # Should appear on both Jan 15 and Jan 16
+        assert len(repo.load_sleep_sessions_by_date("2025-01-15")) == 1
+        assert len(repo.load_sleep_sessions_by_date("2025-01-16")) == 1
+        assert len(repo.load_sleep_sessions_by_date("2025-01-17")) == 0
+
+    def test_active_session_appears(self, repo: Repository) -> None:
+        """Active sessions (no end_time) should appear on their start date."""
+        session = SleepSession(
+            start_time=datetime(2025, 1, 15, 23, 0, 0, tzinfo=UTC),
+        )
+        repo.save_sleep_session(session)
+        assert len(repo.load_sleep_sessions_by_date("2025-01-15")) == 1
+
+    def test_no_match(self, repo: Repository) -> None:
+        """Sessions outside the date should not be returned."""
+        session = SleepSession(
+            start_time=datetime(2025, 1, 14, 10, 0, 0, tzinfo=UTC),
+            end_time=datetime(2025, 1, 14, 12, 0, 0, tzinfo=UTC),
+        )
+        repo.save_sleep_session(session)
+        assert len(repo.load_sleep_sessions_by_date("2025-01-15")) == 0
+
+
+class TestAnalysisResultsByRange:
+    """Tests for time-range analysis result queries."""
+
+    def test_range_query(self, repo: Repository) -> None:
+        """Results within the range should be returned in chronological order."""
+        base = datetime(2025, 1, 15, tzinfo=UTC)
+        for i in range(5):
+            repo.save_analysis_result(
+                AnalysisResult(
+                    timestamp=base + timedelta(hours=i),
+                    posture="仰向け",
+                    sleep_state="覚醒",
+                    summary=f"result {i}",
+                    confidence="high",
+                    raw_response="raw",
+                )
+            )
+        results = repo.load_analysis_results_by_range(
+            "2025-01-15T01:00:00", "2025-01-15T04:00:00"
+        )
+        assert len(results) == 3
+        assert results[0].summary == "result 1"
+        assert results[2].summary == "result 3"
+
+    def test_range_query_empty(self, repo: Repository) -> None:
+        """Empty range should return no results."""
+        results = repo.load_analysis_results_by_range(
+            "2025-01-15T00:00:00", "2025-01-15T23:59:59"
+        )
+        assert results == []
+
+    def test_range_query_respects_limit(self, repo: Repository) -> None:
+        """Limit parameter should cap the number of results."""
+        base = datetime(2025, 1, 15, tzinfo=UTC)
+        for i in range(10):
+            repo.save_analysis_result(
+                AnalysisResult(
+                    timestamp=base + timedelta(hours=i),
+                    posture="仰向け",
+                    sleep_state="覚醒",
+                    summary=f"result {i}",
+                    confidence="high",
+                    raw_response="raw",
+                )
+            )
+        results = repo.load_analysis_results_by_range(
+            "2025-01-15T00:00:00", "2025-01-16T00:00:00", limit=3
+        )
+        assert len(results) == 3
+
+
 # ------------------------------------------------------------------
 # Daily Timelapses
 # ------------------------------------------------------------------
