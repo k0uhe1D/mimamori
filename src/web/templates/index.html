@@ -84,7 +84,11 @@
     }
     /* Video */
     .video-frame { position: relative; width: 100%; aspect-ratio: 3/4; overflow: hidden; border-radius: var(--radius-sm); background: #111; }
-    .video-frame img { position: absolute; top: 50%; left:110%; right: 100%; height: 100%; aspect-ratio: 4/3; object-fit: cover; transform: translate(-50%, -50%) rotate(90deg); }
+    .video-frame img {
+      position: absolute; top: 50%; left:110%; right: 100%; height: 100%; aspect-ratio: 4/3; object-fit: cover;
+      transform: translate(-50%, -50%) rotate(var(--preview-rotate, 90deg)) scale(var(--preview-scale, 1));
+      margin-left: var(--preview-offset-x, 0px); margin-top: var(--preview-offset-y, 0px);
+    }
     .controls-bar { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
     /* Results */
     .result-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
@@ -467,6 +471,30 @@
           </div>
         </div>
       </details>
+      <details id="settingsPreview">
+        <summary>映像表示設定</summary>
+        <div class="settings-section">
+          <div class="cam-slider">
+            <label>回転 <span id="previewRotateVal">90°</span></label>
+            <input type="range" id="previewRotateSlider" min="0" max="360" step="1" value="90" oninput="updatePreview()">
+          </div>
+          <div class="cam-slider">
+            <label>拡大 <span id="previewScaleVal">100%</span></label>
+            <input type="range" id="previewScaleSlider" min="50" max="200" step="5" value="100" oninput="updatePreview()">
+          </div>
+          <div class="cam-slider">
+            <label>水平位置 <span id="previewOffsetXVal">0</span></label>
+            <input type="range" id="previewOffsetXSlider" min="-50" max="50" step="1" value="0" oninput="updatePreview()">
+          </div>
+          <div class="cam-slider">
+            <label>垂直位置 <span id="previewOffsetYVal">0</span></label>
+            <input type="range" id="previewOffsetYSlider" min="-50" max="50" step="1" value="0" oninput="updatePreview()">
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-outline btn-sm" onclick="resetPreview()">リセット</button>
+          </div>
+        </div>
+      </details>
     </div>
     </div><!-- /tabSettings -->
   </div>
@@ -786,7 +814,43 @@
     async function syncControlState() {
       try { var r = await fetch('/api/control/status'), d = await r.json(); applyControlState(d); } catch (e) { /* ignore */ }
     }
-    loadSettings(); fetchStatus(); fetchHistory(); fetchSleepStatus(); fetchSleepHistory(); loadCamControls(); syncControlState();
+    /* -- Preview adjustment (localStorage) -- */
+    var PREVIEW_DEFAULTS = { rotate: 90, scale: 100, offsetX: 0, offsetY: 0 };
+    function loadPreviewSettings() {
+      var saved = localStorage.getItem('mimamori_preview');
+      var s = saved ? JSON.parse(saved) : PREVIEW_DEFAULTS;
+      document.getElementById('previewRotateSlider').value = s.rotate;
+      document.getElementById('previewScaleSlider').value = s.scale;
+      document.getElementById('previewOffsetXSlider').value = s.offsetX;
+      document.getElementById('previewOffsetYSlider').value = s.offsetY;
+      applyPreview(s);
+    }
+    function applyPreview(s) {
+      var frame = document.querySelector('.video-frame');
+      frame.style.setProperty('--preview-rotate', s.rotate + 'deg');
+      frame.style.setProperty('--preview-scale', s.scale / 100);
+      frame.style.setProperty('--preview-offset-x', s.offsetX + '%');
+      frame.style.setProperty('--preview-offset-y', s.offsetY + '%');
+      document.getElementById('previewRotateVal').textContent = s.rotate + '\u00B0';
+      document.getElementById('previewScaleVal').textContent = s.scale + '%';
+      document.getElementById('previewOffsetXVal').textContent = s.offsetX;
+      document.getElementById('previewOffsetYVal').textContent = s.offsetY;
+    }
+    function updatePreview() {
+      var s = {
+        rotate: parseInt(document.getElementById('previewRotateSlider').value),
+        scale: parseInt(document.getElementById('previewScaleSlider').value),
+        offsetX: parseInt(document.getElementById('previewOffsetXSlider').value),
+        offsetY: parseInt(document.getElementById('previewOffsetYSlider').value)
+      };
+      applyPreview(s);
+      localStorage.setItem('mimamori_preview', JSON.stringify(s));
+    }
+    function resetPreview() {
+      localStorage.removeItem('mimamori_preview');
+      loadPreviewSettings();
+    }
+    loadPreviewSettings(); loadSettings(); fetchStatus(); fetchHistory(); fetchSleepStatus(); fetchSleepHistory(); loadCamControls(); syncControlState();
     setInterval(fetchStatus, 5000);
     setInterval(syncControlState, 5000);
     setInterval(function() { if (isDesktop() || currentTab === 'monitor') fetchHistory(); }, 10000);
