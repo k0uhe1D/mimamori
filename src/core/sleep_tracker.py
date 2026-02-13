@@ -162,6 +162,36 @@ class SleepTracker:
                 return items[:limit]
             return items
 
+    def get_sessions_by_date(self, target_date: date) -> list[SleepSession]:
+        """Get sleep sessions that overlap with a given date.
+
+        Uses the repository if available, otherwise filters in-memory sessions.
+
+        Args:
+            target_date: The date to filter sessions for.
+
+        Returns:
+            List of SleepSession in chronological order (oldest first).
+        """
+        date_str = target_date.isoformat()
+        if self._repository is not None:
+            pairs = self._repository.load_sleep_sessions_by_date(date_str)
+            return [session for _, session in pairs]
+
+        day_start = datetime(
+            target_date.year, target_date.month, target_date.day, tzinfo=UTC
+        )
+        day_end = datetime(
+            target_date.year, target_date.month, target_date.day, 23, 59, 59, tzinfo=UTC
+        )
+        with self._lock:
+            return [
+                s
+                for s in self._sessions
+                if s.start_time <= day_end
+                and (s.end_time is None or s.end_time >= day_start)
+            ]
+
     def _run(self) -> None:
         """Main tracking loop."""
         while not self._stop_event.is_set():

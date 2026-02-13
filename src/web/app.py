@@ -23,6 +23,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.web.schemas import (
     AnalysisControlResponse,
+    AnalysisRangeResponse,
     CameraSwapRequest,
     CameraSwapResponse,
     ControlStatusResponse,
@@ -34,7 +35,9 @@ from src.web.schemas import (
     SettingsGetResponse,
     SettingsUpdateRequest,
     SettingsUpdateResponse,
+    SleepHistoryByDateResponse,
     SleepHistoryResponse,
+    SleepSessionDetailItem,
     SleepSessionItem,
     SleepStatusResponse,
     StatusResponse,
@@ -50,6 +53,7 @@ if TYPE_CHECKING:
     from src.core.grabber import FrameGrabber
     from src.core.sleep_tracker import SleepTracker
     from src.core.state import MonitoringState
+    from src.db.repository import Repository
     from src.recorder.recorder import VideoRecorder
 
 logger = logging.getLogger(__name__)
@@ -66,6 +70,7 @@ def create_app(
     worker: AnalyzerWorker | None = None,
     recorder: VideoRecorder | None = None,
     sleep_tracker: SleepTracker | None = None,
+    repository: Repository | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -78,6 +83,7 @@ def create_app(
         worker: AnalyzerWorker instance for pause/resume control.
         recorder: VideoRecorder instance for recording control.
         sleep_tracker: SleepTracker instance for sleep monitoring.
+        repository: SQLite repository for analysis range queries.
 
     Returns:
         Configured FastAPI application instance.
@@ -419,6 +425,95 @@ def create_app(
         if gif_path is None or not Path(gif_path).exists():
             return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
         return FileResponse(gif_path, media_type="image/gif")
+
+    @app.get("/api/sleep/history/{date_str}")
+    async def api_sleep_history_by_date(
+        date_str: str,
+    ) -> SleepHistoryByDateResponse:
+        """Get sleep sessions for a specific date.
+
+        Args:
+            date_str: Date in YYYY-MM-DD format.
+
+        Returns:
+            Sessions with snapshot filenames for the given date.
+        """
+        if sleep_tracker is None:
+            return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        try:
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            return JSONResponse({"detail": "Invalid date"}, status_code=400)  # type: ignore[return-value]
+        sessions = sleep_tracker.get_sessions_by_date(target_date)
+        items = [
+            SleepSessionDetailItem(
+                start_time=s.start_time,
+                end_time=s.end_time,
+                duration_seconds=s.duration_seconds,
+                is_active=s.is_active,
+                snapshot_count=len(s.snapshot_paths),
+                snapshot_filenames=[Path(p).name for p in s.snapshot_paths],
+            )
+            for s in sessions
+        ]
+        total = sum(s.duration_seconds for s in sessions)
+        has_daily = sleep_tracker.get_daily_timelapse(target_date) is not None
+        return SleepHistoryByDateResponse(
+            date_str=date_str,
+            sessions=items,
+            total_sleep_seconds=total,
+            daily_timelapse_available=has_daily,
+        )
+
+    @app.get("/api/sleep/snapshot/{filename}")
+    async def api_sleep_snapshot(filename: str) -> FileResponse:
+        """Serve a sleep snapshot JPEG file.
+
+        Args:
+            filename: Snapshot filename (basename only, no path separators).
+
+        Returns:
+            JPEG file response.
+        """
+        if Path(filename).name != filename or "/" in filename or "\\" in filename:
+            return JSONResponse(  # type: ignore[return-value]
+                {"detail": "Forbidden"}, status_code=403
+            )
+        if sleep_tracker is None:
+            return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        snapshot_dir = sleep_tracker._snapshot_dir
+        filepath = snapshot_dir / filename
+        if not filepath.exists():
+            return JSONResponse({"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        return FileResponse(str(filepath), media_type="image/jpeg")
+
+    @app.get("/api/analysis/range")
+    async def api_analysis_range(start: str, end: str) -> AnalysisRangeResponse:
+        """Get analysis results within a time range.
+
+        Args:
+            start: Start timestamp in ISO format (inclusive).
+            end: End timestamp in ISO format (exclusive).
+
+        Returns:
+            Analysis results within the range.
+        """
+        if repository is None:
+            return AnalysisRangeResponse(items=[])
+        results = repository.load_analysis_results_by_range(start, end)
+        items = [
+            HistoryItem(
+                timestamp=r.timestamp,
+                posture=r.posture,
+                sleep_state=r.sleep_state,
+                summary=r.summary,
+                confidence=r.confidence,
+                anomalies=r.anomalies,
+                actions=r.actions,
+            )
+            for r in results
+        ]
+        return AnalysisRangeResponse(items=items)
 
     return app
 
