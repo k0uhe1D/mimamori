@@ -6,7 +6,21 @@ build-backend = "setuptools.build_meta"
 name = "mimamori"
 version = "0.1.0"
 description = "新生児モニタリングシステム"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.12"
+authors = [{ name = "k0uhe1D" }]
+keywords = ["newborn", "monitoring", "computer-vision", "llm", "raspberry-pi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "opencv-python>=4.9",
     "openai>=1.0",
@@ -27,6 +41,11 @@ dev = [
 
 [project.scripts]
 mimamori = "src.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/k0uhe1D/mimamori"
+Repository = "https://github.com/k0uhe1D/mimamori"
+Issues = "https://github.com/k0uhe1D/mimamori/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

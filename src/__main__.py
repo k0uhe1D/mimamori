@@ -17,7 +17,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from src.analyzer import AnalysisResult, analyze_frame, analyze_frame_gemini
-from src.capture import HTTPCamera, OpenCVCamera, RTSPCamera, encode_frame_to_base64
+from src.capture import create_camera, encode_frame_to_base64
 from src.config import RuntimeConfig, Settings
 from src.core import AnalyzerWorker, FrameGrabber, MonitoringState, SleepTracker
 from src.db import Repository
@@ -59,21 +59,14 @@ def _create_camera(settings: Settings) -> CameraProtocol:
         settings: Application settings.
 
     Returns:
-        Camera instance (RTSPCamera if camera_url is set, else OpenCVCamera).
+        Camera instance (HTTP/RTSP/local according to camera_url).
     """
-    url = settings.camera_url
-    if url.startswith(("http://", "https://")):
-        shot_url = url.rstrip("/") + "/shot.jpg"
-        logger.info("Using HTTP camera: %s", shot_url)
-        return HTTPCamera(shot_url=shot_url)
-    if url:
-        logger.info("Using RTSP camera: %s", url)
-        return RTSPCamera(url=url)
-    logger.info("Using local camera device: %d", settings.camera_device_index)
-    return OpenCVCamera(
+    return create_camera(
+        camera_url=settings.camera_url,
         device_index=settings.camera_device_index,
         width=settings.capture_width,
         height=settings.capture_height,
+        http_snapshot_path=settings.camera_http_snapshot_path,
     )
 
 
@@ -140,17 +133,13 @@ def run_web(settings: Settings) -> int:
 
     def swap_camera_fn(url: str, device_index: int) -> None:
         """Create a new camera and swap the grabber to use it."""
-        if url.startswith(("http://", "https://")):
-            shot_url = url.rstrip("/") + "/shot.jpg"
-            new_camera: CameraProtocol = HTTPCamera(shot_url=shot_url)
-        elif url:
-            new_camera = RTSPCamera(url=url)
-        else:
-            new_camera = OpenCVCamera(
-                device_index=device_index,
-                width=settings.capture_width,
-                height=settings.capture_height,
-            )
+        new_camera: CameraProtocol = create_camera(
+            camera_url=url,
+            device_index=device_index,
+            width=settings.capture_width,
+            height=settings.capture_height,
+            http_snapshot_path=settings.camera_http_snapshot_path,
+        )
         grabber.swap_camera(new_camera)
 
     grabber.start()
@@ -193,11 +182,7 @@ def run_once(settings: Settings) -> int:
     Returns:
         Exit code (0 for success, 1 for failure).
     """
-    camera = OpenCVCamera(
-        device_index=settings.camera_device_index,
-        width=settings.capture_width,
-        height=settings.capture_height,
-    )
+    camera = _create_camera(settings)
     try:
         frame = camera.read_frame()
         if frame is None:
@@ -231,11 +216,7 @@ def run_periodic(settings: Settings) -> int:
     Returns:
         Exit code (0 for normal exit, 1 for failure).
     """
-    camera = OpenCVCamera(
-        device_index=settings.camera_device_index,
-        width=settings.capture_width,
-        height=settings.capture_height,
-    )
+    camera = _create_camera(settings)
     try:
         logger.info(
             "Starting periodic monitoring (interval: %ds). Press Ctrl+C to stop.",

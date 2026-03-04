@@ -16,17 +16,17 @@ class TestRunOnce:
 
     @patch("src.__main__.analyze_frame")
     @patch("src.__main__.encode_frame_to_base64")
-    @patch("src.__main__.OpenCVCamera")
+    @patch("src.__main__.create_camera")
     def test_run_once_success(
         self,
-        mock_camera_cls: MagicMock,
+        mock_create_camera: MagicMock,
         mock_encode: MagicMock,
         mock_analyze: MagicMock,
     ) -> None:
         """run_once returns 0 on successful capture and analysis."""
         mock_camera = MagicMock()
         mock_camera.read_frame.return_value = np.zeros((480, 640, 3), dtype=np.uint8)
-        mock_camera_cls.return_value = mock_camera
+        mock_create_camera.return_value = mock_camera
         mock_encode.return_value = "base64data"
         mock_analyze.return_value = AnalysisResult.create_now(
             posture="仰向け",
@@ -40,12 +40,12 @@ class TestRunOnce:
         assert run_once(settings) == 0
         mock_camera.release.assert_called_once()
 
-    @patch("src.__main__.OpenCVCamera")
-    def test_run_once_capture_failure(self, mock_camera_cls: MagicMock) -> None:
+    @patch("src.__main__.create_camera")
+    def test_run_once_capture_failure(self, mock_create_camera: MagicMock) -> None:
         """run_once returns 1 when frame capture fails."""
         mock_camera = MagicMock()
         mock_camera.read_frame.return_value = None
-        mock_camera_cls.return_value = mock_camera
+        mock_create_camera.return_value = mock_camera
 
         settings = Settings(openai_api_key="test-key")
         assert run_once(settings) == 1
