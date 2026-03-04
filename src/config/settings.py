@@ -16,6 +16,7 @@ class Settings:
         gemini_api_key: Google Gemini API key.
         camera_device_index: Camera device index for OpenCV VideoCapture.
         camera_url: RTSP camera URL (empty for local device).
+        camera_http_snapshot_path: Snapshot path for HTTP camera base URL.
         analysis_interval_seconds: Interval between analyses in periodic mode.
         capture_width: Requested capture width in pixels.
         capture_height: Requested capture height in pixels.
@@ -28,6 +29,7 @@ class Settings:
     gemini_api_key: str = ""
     camera_device_index: int = 0
     camera_url: str = ""
+    camera_http_snapshot_path: str = "/shot.jpg"
     analysis_interval_seconds: int = 5
     capture_width: int = 640
     capture_height: int = 480
@@ -44,6 +46,8 @@ class Settings:
             GEMINI_API_KEY: Google Gemini API key (required when provider is gemini).
             CAMERA_DEVICE_INDEX (optional, default 0): Camera device index.
             CAMERA_URL (optional): RTSP camera URL.
+            CAMERA_HTTP_SNAPSHOT_PATH (optional, default "/shot.jpg"):
+                Snapshot endpoint path used when CAMERA_URL is base HTTP URL.
             ANALYSIS_INTERVAL_SECONDS (optional, default 5): Analysis interval.
             CAPTURE_WIDTH (optional, default 640): Capture width.
             CAPTURE_HEIGHT (optional, default 480): Capture height.
@@ -85,6 +89,10 @@ class Settings:
             gemini_api_key=gemini_key,
             camera_device_index=int(os.environ.get("CAMERA_DEVICE_INDEX", "0")),
             camera_url=os.environ.get("CAMERA_URL", ""),
+            camera_http_snapshot_path=os.environ.get(
+                "CAMERA_HTTP_SNAPSHOT_PATH",
+                "/shot.jpg",
+            ),
             analysis_interval_seconds=int(
                 os.environ.get("ANALYSIS_INTERVAL_SECONDS", "5")
             ),

@@ -21,6 +21,7 @@ class TestSettings:
         assert settings.openai_api_key == "test-key-123"
         assert settings.llm_provider == "openai"
         assert settings.camera_device_index == 0
+        assert settings.camera_http_snapshot_path == "/shot.jpg"
         assert settings.analysis_interval_seconds == 5
 
     def test_from_env_missing_provider_raises(self) -> None:
@@ -87,6 +88,7 @@ class TestSettings:
             "CAPTURE_HEIGHT": "720",
             "OPENAI_MODEL": "gpt-4o-mini",
             "CAMERA_URL": "rtsp://192.168.1.100:8554/video",
+            "CAMERA_HTTP_SNAPSHOT_PATH": "/photo.jpg",
         }
         with patch.dict(os.environ, env):
             settings = Settings.from_env()
@@ -96,6 +98,7 @@ class TestSettings:
         assert settings.capture_height == 720
         assert settings.openai_model == "gpt-4o-mini"
         assert settings.camera_url == "rtsp://192.168.1.100:8554/video"
+        assert settings.camera_http_snapshot_path == "/photo.jpg"
 
     def test_camera_url_defaults_to_empty(self) -> None:
         """Settings.camera_url defaults to empty string."""
