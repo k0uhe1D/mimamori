@@ -218,7 +218,7 @@ mimamori/
 │   ├── workflows/    # GitHub Actions
 │   └── ISSUE_TEMPLATE/
 ├── docs/
-├── CLAUDE.md
+├── CONTRIBUTING.md
 └── pyproject.toml
 ```
 
