@@ -18,6 +18,12 @@ env/
 *.swp
 *.swo
 
+# Local agent tooling
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md
+
 # Environment variables
 .env
 .env.*
